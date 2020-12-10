@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RTSP player example(based streamedian)</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="sourcesNode"></div>
+<div>
+    <input  id="stream_url" size="80" value="rtsp://localhost:1554/test/live1">
+    <button id="set_new_url">Set</button>
+</div>
+<div>
+    <p style="color:#808080">Enter your rtsp link to the stream, for example: "rtsp://localhost:1554/test/live1"</p>
+    <p style="color:#808080">If need token,for example: "rtsp://localhost:1554/test/live1?token=4df8f5d5d680385cb07c2e354dd0f3f3"</p>
+</div>
+
+<div>
+    <input id="buffer_duration" type="range" min="10" max="200" style="width:40%;">
+    <span  id="buffer_value">120sec.</span>
+</div>
+
+<div>
+    <p style="color:#808080">Change buffer duration</p>
+</div>
+
+<video id="test_video" controls autoplay>
+    <!--<source src="rtsp://192.168.10.205:554/ch01.264" type="application/x-rtsp">-->
+    <!--<source src="rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov" type="application/x-rtsp">-->
+</video>
+
+<div class="controls form">
+    <div>
+        Playback rate:&nbsp;
+        <input id="rate" class="input" type="range" min="0.5" max="5.0" value="1.0" step="0.5">
+        <output for="rate" id="rate_res">live</output>
+    </div>
+    <div>
+        <button id="to_end" class="btn btn-success">live</button>
+    </div>
+</div>
+
+<p>View HTML5 RTSP video player log</p>
+<div id="pllogs" class="logs"></div>
+<button class="btn btn-success" onclick="cleanLog(pllogs)">clear</button>
+<button class="btn btn-success" onclick="scrollset(pllogs, true)">scroll up</button>
+<button class="btn btn-success" onclick="scrollset(pllogs, false)">scroll down</button>
+<button id="scrollSetPl" class="btn btn-success" onclick="scrollswitch(pllogs)">Scroll off</button>
+<br/><br/>
+
+<script src="free.player.1.8.js"></script> <!-- Path to player js-->
+
+<script>
+    var scrollStatPl = true;
+    var scrollStatWs = true;
+    var pllogs = document.getElementById("pllogs");
+    var wslogs = document.getElementById("wslogs");
+
+    // define a new console
+    var console=(function(oldConsole){
+        return {
+            log: function(){
+                oldConsole.log(newConsole(arguments, "black", "#A9F5A9"));
+            },
+            info: function () {
+                oldConsole.info(newConsole(arguments, "black", "#A9F5A9"));
+            },
+            warn: function () {
+                oldConsole.warn(newConsole(arguments, "black", "#F3F781"));
+            },
+            error: function () {
+                oldConsole.error(newConsole(arguments, "black", "#F5A9A9"));
+            }
+        };
+    }(window.console));
+
+    function newConsole(args, textColor, backColor){
+        let text = '';
+        let node = document.createElement("div");
+        for (let arg in args){
+            text +=' ' + args[arg];
+        }
+        node.appendChild(document.createTextNode(text));
+        node.style.color = textColor;
+        node.style.backgroundColor = backColor;
+        pllogs.appendChild(node);
+        autoscroll(pllogs);
+        return text;
+    }
+
+    //Then redefine the old console
+    window.console = console;
+
+    function cleanLog(element){
+        while (element.firstChild) {
+            element.removeChild(element.firstChild);
+        }
+    }
+
+    function autoscroll(element){
+        if(scrollStatus(element)){
+            element.scrollTop = element.scrollHeight;
+        }
+        if(element.childElementCount > 1000){
+            element.removeChild(element.firstChild);
+        }
+    }
+
+    function scrollset(element, state){
+        if(state){
+            element.scrollTop = 0;
+            scrollChange(element, false);
+        } else {
+            element.scrollTop = element.scrollHeight;
+            scrollChange(element, true);
+        }
+    }
+
+    function scrollswitch(element){
+        if(scrollStatus(element)){
+            scrollChange(element, false);
+        } else {
+            scrollChange(element, true);
+        }
+    }
+
+    function scrollChange(element, status){
+        if(scrollStatus(element)){
+            scrollStatPl = false;
+            document.getElementById("scrollSetPl").innerText = "Scroll on";
+        } else {
+            scrollStatPl = true;
+            document.getElementById("scrollSetPl").innerText = "Scroll off";
+        }
+    }
+
+    function scrollStatus(element){
+        if(element.id === "pllogs"){
+            return scrollStatPl;
+        } else {
+            return scrollStatWs;
+        }
+    }
+
+
+</script>
+
+<script>
+    if (window.Streamedian) {
+        let errHandler = function(err){
+            alert(err.message);
+        };
+
+        let infHandler = function(inf) {
+            let sourcesNode = document.getElementById("sourcesNode");
+            let clients = inf.clients;
+            sourcesNode.innerHTML = "";
+
+            for (let client in clients) {
+                clients[client].forEach((sources) => {
+                    let nodeButton = document.createElement("button");
+                    nodeButton.setAttribute('data', sources.url + ' ' + client);
+                    nodeButton.appendChild(document.createTextNode(sources.description));
+                    nodeButton.onclick = (event)=> {
+                        setPlayerSource(event.target.getAttribute('data'));
+                    };
+                    sourcesNode.appendChild(nodeButton);
+                });
+            }
+        };
+
+        var playerOptions = {
+            socket: "ws://localhost:1554/ws/test/live1",            redirectNativeMediaErrors : true,
+            bufferDuration: 30,
+            errorHandler: errHandler,
+            infoHandler: infHandler
+        };
+
+        var html5Player  = document.getElementById("test_video");
+        var urlButton    = document.getElementById("set_new_url");
+        var urlEdit      = document.getElementById("stream_url");
+        var bufferRange  = document.getElementById("buffer_duration");
+        var bufferValue  = document.getElementById("buffer_value");
+
+        var player = Streamedian.player('test_video', playerOptions);
+        var nativePlayer = document.getElementById('test_video');
+        var range = document.getElementById('rate');
+        var set_live = document.getElementById('to_end');
+        var range_out = document.getElementById('rate_res');
+
+        range.addEventListener('input', function () {
+            nativePlayer.playbackRate = range.value;
+            range_out.innerHTML = `x${range.value}`;
+        });
+        set_live.addEventListener('click', function () {
+            range.value = 1.0;
+            range_out.innerHTML = `live`;
+            nativePlayer.playbackRate = 1;
+            nativePlayer.currentTime = nativePlayer.buffered.end(0);
+        });
+
+        var updateRangeControls = function(){
+            bufferRange.value     =  player.bufferDuration;
+            bufferValue.innerHTML = bufferRange.value + "sec.";
+        };
+
+        bufferRange.addEventListener('input', function(){
+            var iValue = parseInt(this.value, 10);
+            player.bufferDuration = iValue;
+            bufferValue.innerHTML = this.value + "sec.";
+        });
+
+        bufferRange.innerHTML = player.bufferDuration + "sec.";
+        updateRangeControls();
+
+        urlButton.onclick = ()=> {
+            setPlayerSource(urlEdit.value);
+        };
+
+        function setPlayerSource(newSource) {
+            player.destroy();
+            player = null;
+            html5Player.src = newSource;
+            // 修改原例子 begn =======>
+            // 我们直接使用ws来决定播放的路径，
+            // 比如：ws://192.168.1.100:1554/ws/test/live1
+            // 表示要播放服务器上路径为/test/live1
+            // 如果播放失败，可能是以下情况(1和2发生在升级websocket阶段，3发生在rtsp通讯阶段)
+            //  1. 如果服务器rtsp的验证模式不为NONE，则需要登录后获取到token才能访问；像这样ws://.../test/live1?token=...
+            //  2. 可能没有权限，需要联系人对你登录的用户授权
+            //  3. 可能找不到流媒体
+            //
+            // 如果不是使用例子，我们可以这样
+            //  html5Player.src = "rtsp://placehold"
+            //  playerOptions.socket ="ws://localhost:1554/ws/test/live1"
+            // 知道ws主机后，实际上只需要提供流媒体path即可，这也更好
+            // 
+            let rtspUrl = new URL(newSource)
+            rtspUrl.protocol = "ws"
+            rtspUrl.pathname = "/ws"+rtspUrl.pathname
+            playerOptions.socket = rtspUrl.href
+            // <========= end
+            player = Streamedian.player("test_video", playerOptions);
+            updateRangeControls();
+        }
+    }
+</script>
+</body>
+</html>

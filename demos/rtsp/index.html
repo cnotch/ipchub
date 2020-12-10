@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RTSP player example(based rtsp websockcet client)</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div id="sourcesNode"></div>
+	<div>
+		<input  id="stream_url" value= "ws://localhost:1554/ws/test/live1" size="36">
+		<button id="load_url">load</button>
+		<button id="unload_url">unload</button>
+	</div>
+	<div>
+		<p style="color:#808080">Enter your ws link to the stream, for example: "ws://localhost:1554/ws/test/live1"</p>
+	</div>	
+<video id="test_video" controls autoplay>
+   <source src="rtsp://placehold" type="application/x-rtsp">
+</video>
+<div class="controls form">
+    <div>
+        <button id="to_end" class="btn btn-success">live(to end)</button>
+    </div>
+</div>
+
+	<p>View HTML5 RTSP video player log</p>
+	<div id="pllogs" class="logs"></div>
+	<button class="btn btn-success" onclick="cleanLog(pllogs)">clear</button>
+	<button class="btn btn-success" onclick="scrollset(pllogs, true)">scroll up</button>
+	<button class="btn btn-success" onclick="scrollset(pllogs, false)">scroll down</button>
+	<button id="scrollSetPl" class="btn btn-success" onclick="scrollswitch(pllogs)">Scroll off</button>
+	</br></br>
+	
+<!-- <script src="jquery-1.9.1.js"></script> -->
+<script>
+	var scrollStatPl = true;
+	var scrollStatWs = true;
+	var pllogs = document.getElementById("pllogs");
+	var wslogs = document.getElementById("wslogs");
+
+    // define a new console
+    var console=(function(oldConsole){
+	    return {
+		    log: function(){
+				oldConsole.log(newConsole(arguments, "black", "#A9F5A9"));
+		    },
+		    info: function () {
+				oldConsole.info(newConsole(arguments, "black", "#A9F5A9"));
+		    },
+		    warn: function () {
+				oldConsole.warn(newConsole(arguments, "black", "#F3F781"));
+		    },
+		    error: function () {
+				oldConsole.error(newConsole(arguments, "black", "#F5A9A9"));
+		    }
+	    };
+    }(window.console));
+
+    function newConsole(args, textColor, backColor){
+		let text = '';
+		let node = document.createElement("div");
+		for (let arg in args){
+		    text +=' ' + args[arg];
+		}
+		node.appendChild(document.createTextNode(text));
+		node.style.color = textColor;
+		node.style.backgroundColor = backColor;
+		pllogs.appendChild(node);
+		autoscroll(pllogs);
+		return text;
+    }
+
+    //Then redefine the old console
+    window.console = console;
+    
+    function cleanLog(element){
+		while (element.firstChild) {
+		    element.removeChild(element.firstChild);
+		}
+    }
+
+    function autoscroll(element){
+    	if(scrollStatus(element)){
+			element.scrollTop = element.scrollHeight;
+		}
+		if(element.childElementCount > 1000){
+			element.removeChild(element.firstChild);
+		}
+    }
+
+    function scrollset(element, state){
+		if(state){
+			element.scrollTop = 0;
+			scrollChange(element, false);
+		} else {
+			element.scrollTop = element.scrollHeight;
+			scrollChange(element, true);
+		}
+    }
+
+    function scrollswitch(element){
+    	if(scrollStatus(element)){
+    		scrollChange(element, false);
+    	} else {
+    		scrollChange(element, true);
+    	}
+    }
+
+    function scrollChange(element, status){
+		if(scrollStatus(element)){
+    		scrollStatPl = false;
+    		document.getElementById("scrollSetPl").innerText = "Scroll on";
+    	} else {
+    		scrollStatPl = true;
+    		document.getElementById("scrollSetPl").innerText = "Scroll off";
+    	}
+    }
+
+    function scrollStatus(element){
+    	if(element.id === "pllogs"){
+    		return scrollStatPl;
+    	} else {
+    		return scrollStatWs;
+    	}
+    }
+</script>
+
+<script src="rtsp.dev.js" ></script>
+<script>
+    let videoElement = document.getElementById('test_video');
+	let loadButton    = document.getElementById("load_url");
+	let unloadButton    = document.getElementById("unload_url");
+	let urlEdit      = document.getElementById("stream_url");
+	let rtspPlayer = rtspjs.createPlayer('test_video');
+
+	loadButton.onclick = ()=> {
+		rtspPlayer.load(urlEdit.value)
+    };
+	unloadButton.onclick = ()=> {
+		rtspPlayer.unload()
+    };
+	
+	// 设置到实时视频
+	var set_live = document.getElementById('to_end');
+    set_live.addEventListener('click', function () {
+        videoElement.playbackRate = 1;
+        videoElement.currentTime = videoElement.buffered.end(0);//videoElement.seekable.end(videoElement.seekable.length - 1);
+	});
+	
+</script>
+
+</body>
+</html>
+

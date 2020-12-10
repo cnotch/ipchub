@@ -1,0 +1,28 @@
+body {
+    max-width: 720px;
+    margin: 50px auto;
+}
+
+#test_video {
+    width: 720px;
+}
+
+.controls {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+input.input, .form-inline .input-group>.form-control {
+    width: 300px;
+}
+.logs {
+    overflow: auto;
+    width: 720px;
+    height: 150px;
+    padding: 5px;
+    border-top: solid 1px gray;
+    border-bottom: solid 1px gray;
+}
+button {
+    margin: 5px
+}
