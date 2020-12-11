@@ -24,5 +24,8 @@ type FrameWriter interface {
 
 // FrameExtractor 帧提取器
 type FrameExtractor interface {
-	ExtractTo(w FrameWriter, p *Packet) error
+	Extract(p *Packet) error
 }
+
+// CreateFrameExtractor 帧提取器创建方式
+type CreateFrameExtractor func(w FrameWriter) FrameExtractor
