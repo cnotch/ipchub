@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/kelindar/process v0.0.0-20170730150328-69a29e249ec3
 	github.com/kelindar/rate v1.0.0
+	github.com/pion/rtp v1.6.1
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/crypto v0.0.0-20201208171446-5f87f3452ae9
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
