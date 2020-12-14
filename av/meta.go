@@ -7,7 +7,7 @@ package av
 // VideoMeta 视频元数据
 type VideoMeta struct {
 	Codec     string  `json:"codec"`
-	DataRate  int     `json:"datarate,omitempty"`
+	DataRate  float64 `json:"datarate,omitempty"`
 	Width     int     `json:"width,omitempty"`
 	Height    int     `json:"height,omitempty"`
 	FrameRate float64 `json:"framerate,omitempty"`
@@ -18,10 +18,10 @@ type VideoMeta struct {
 
 // AudioMeta 音频元数据
 type AudioMeta struct {
-	Codec      string `json:"codec"`
-	DataRate   int    `json:"datarate,omitempty"`
-	SampleRate int    `json:"samplerate,omitempty"`
-	SampleSize int    `json:"samplesize,omitempty"`
-	Stereo     bool   `json:"stereo,omitempty"`
-	Sps        []byte `json:"-"` // sps
+	Codec      string  `json:"codec"`
+	DataRate   float64 `json:"datarate,omitempty"`
+	SampleRate int     `json:"samplerate,omitempty"`
+	SampleSize int     `json:"samplesize,omitempty"`
+	Stereo     bool    `json:"stereo,omitempty"`
+	Sps        []byte  `json:"-"` // sps
 }
