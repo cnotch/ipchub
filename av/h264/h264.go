@@ -50,6 +50,8 @@ const (
 	NalMtap24InRtp = 27 // 多个时间的组合包
 	NalFuAInRtp    = 28 // 分片的单元
 	NalFuBInRtp    = 29 // 分片的单元
+
+	NalTypeBitmask = 0x1F
 )
 
 // 其他常量

@@ -5,6 +5,8 @@
 package rtp
 
 import (
+	"fmt"
+
 	"github.com/cnotch/ipchub/av/h264"
 )
 
@@ -32,12 +34,10 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 	// +-+-+-+-+-+-+-+-+
 	// |F|NRI|  Type   |
 	// +---------------+
-	switch payload[0] & 0x1F {
-	case h264.NalStapaInRtp, h264.NalStapbInRtp, h264.NalMtap16InRtp, h264.NalMtap24InRtp:
-		err = fe.extractStapa(packet)
-	case h264.NalFuAInRtp, h264.NalFuBInRtp:
-		err = fe.extractFu(packet)
-	default:
+	naluType := payload[0] & h264.NalTypeBitmask
+
+	switch {
+	case naluType < h264.NalStapaInRtp:
 		// h264 原生 nal 包
 		// 	0                   1                   2                   3
 		// 	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -51,6 +51,12 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 		//  |                               :...OPTIONAL RTP padding        |
 		//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		err = fe.w.Write(&Frame{FrameVideo, packet.Timestamp, payload})
+	case naluType == h264.NalStapaInRtp:
+		err = fe.extractStapa(packet)
+	case naluType == h264.NalFuAInRtp:
+		err = fe.extractFuA(packet)
+	default:
+		err = fmt.Errorf("nalu type %d is currently not handled", naluType)
 	}
 	return
 }
@@ -103,7 +109,7 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 	return
 }
 
-func (fe *h264FrameExtractor) extractFu(packet *Packet) (err error) {
+func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 	payload := packet.Payload()
 	header := payload[0]
 

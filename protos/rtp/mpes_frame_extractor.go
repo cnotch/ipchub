@@ -71,7 +71,7 @@ func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error
 	framesPayload := payload[framesPayloadOffset:]
 	frameTimeStamp := packet.Timestamp
 	for i := 0; i < int(auHeadersCount); i++ {
-		auHeader := uint16(0) | (uint16(payload[0]) << 8) | uint16(payload[1])
+		auHeader := uint16(0) | (uint16(auHeaders[0]) << 8) | uint16(auHeaders[1])
 		frameSize := auHeader >> fe.indexLength
 		frame := &Frame{
 			FrameAudio,
@@ -105,7 +105,7 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 	framesPayload := payload[framesPayloadOffset:]
 	frameTimeStamp := packet.Timestamp
 	for i := 0; i < int(auHeadersCount); i++ {
-		auHeader := payload[0]
+		auHeader := auHeaders[0]
 		frameSize := auHeader >> fe.indexLength
 		frame := &Frame{
 			FrameAudio,
