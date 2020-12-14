@@ -22,7 +22,7 @@ import (
 
 // BenchmarkOf-8   	100000000	        14.5 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkOf(b *testing.B) {
-	v := []byte("a/b/c/d/e/f/g/h/this/is/tomatox")
+	v := []byte("a/b/c/d/e/f/g/h/this/is/ipchub")
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -33,7 +33,7 @@ func BenchmarkOf(b *testing.B) {
 
 // BenchmarkOfString-8   	100000000	        18.4 ns/op	       0 B/op	       0 allocs/op
 func BenchmarkOfString(b *testing.B) {
-	v := "a/b/c/d/e/f/g/h/this/is/tomatox"
+	v := "a/b/c/d/e/f/g/h/this/is/ipchub"
 
 	b.ReportAllocs()
 	b.ResetTimer()

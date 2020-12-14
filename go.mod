@@ -1,4 +1,4 @@
-module github.com/cnotch/tomatox
+module github.com/cnotch/ipchub
 
 go 1.14
 

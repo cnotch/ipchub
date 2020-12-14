@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "tomatox",
+            "name": "ipchub",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -14,7 +14,7 @@
             "args": []
         },
         {
-            "name": "tomatox -log-tofile",
+            "name": "ipchub -log-tofile",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -23,7 +23,7 @@
             "args": ["-log-tofile"]
         },
         {
-            "name": "tomatox -h",
+            "name": "ipchub -h",
             "type": "go",
             "request": "launch",
             "mode": "auto",

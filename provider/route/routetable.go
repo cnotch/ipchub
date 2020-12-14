@@ -7,7 +7,7 @@ package route
 import (
 	"sync"
 
-	"github.com/cnotch/tomatox/utils"
+	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/xlog"
 )
 

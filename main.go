@@ -5,10 +5,10 @@
 package main
 
 import (
+	"github.com/cnotch/ipchub/config"
+	"github.com/cnotch/ipchub/provider/auth"
+	"github.com/cnotch/ipchub/provider/route"
 	"github.com/cnotch/scheduler"
-	"github.com/cnotch/tomatox/config"
-	"github.com/cnotch/tomatox/provider/auth"
-	"github.com/cnotch/tomatox/provider/route"
 	"github.com/cnotch/xlog"
 )
 

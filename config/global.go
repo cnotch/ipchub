@@ -12,16 +12,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cnotch/ipchub/provider/auth"
+	"github.com/cnotch/ipchub/utils"
 	cfg "github.com/cnotch/loader"
-	"github.com/cnotch/tomatox/provider/auth"
-	"github.com/cnotch/tomatox/utils"
 	"github.com/cnotch/xlog"
 )
 
 // 服务名
 const (
 	Vendor  = "CAOHONGJU"
-	Name    = "tomatox"
+	Name    = "ipchub"
 	Version = "V1.0.0"
 )
 

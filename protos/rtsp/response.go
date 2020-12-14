@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/cnotch/tomatox/utils/scan"
+	"github.com/cnotch/ipchub/utils/scan"
 )
 
 // RTSP 响应状态码.

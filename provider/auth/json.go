@@ -11,7 +11,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cnotch/tomatox/utils"
+	"github.com/cnotch/ipchub/utils"
 )
 
 // JSON json 提供者

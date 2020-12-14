@@ -5,7 +5,7 @@
 package rtp
 
 import (
-	"github.com/cnotch/tomatox/av/h264"
+	"github.com/cnotch/ipchub/av/h264"
 )
 
 type h264FrameExtractor struct {

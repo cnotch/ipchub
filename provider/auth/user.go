@@ -10,7 +10,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/cnotch/tomatox/utils/scan"
+	"github.com/cnotch/ipchub/utils/scan"
 )
 
 // AccessRight 访问权限类型

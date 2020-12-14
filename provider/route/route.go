@@ -7,7 +7,7 @@ package route
 import (
 	"net/url"
 
-	"github.com/cnotch/tomatox/utils"
+	"github.com/cnotch/ipchub/utils"
 )
 
 // Route 路由

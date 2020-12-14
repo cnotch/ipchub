@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/cnotch/tomatox/utils/scan"
+	"github.com/cnotch/ipchub/utils/scan"
 )
 
 const (

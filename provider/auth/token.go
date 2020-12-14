@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cnotch/tomatox/provider/security"
+	"github.com/cnotch/ipchub/provider/security"
 )
 
 // Token 用户登录后的Token

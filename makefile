@@ -5,7 +5,7 @@ GOCLEAN=$(GOCMD) clean
 GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 ENABLED_CGO=0
-BINARY_NAME=tomatox
+BINARY_NAME=ipchub
 BINARY_DIR= bin/v1.0.0
 
 build:

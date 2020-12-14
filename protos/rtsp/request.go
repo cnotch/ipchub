@@ -14,7 +14,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/cnotch/tomatox/utils/scan"
+	"github.com/cnotch/ipchub/utils/scan"
 )
 
 const (

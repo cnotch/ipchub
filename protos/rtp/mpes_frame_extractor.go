@@ -7,7 +7,7 @@ package rtp
 import (
 	"fmt"
 
-	"github.com/cnotch/tomatox/av/aac"
+	"github.com/cnotch/ipchub/av/aac"
 )
 
 type mpesFrameExtractor struct {
