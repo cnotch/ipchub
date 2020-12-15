@@ -36,7 +36,7 @@ const (
 
 // SampleRate 获取采用频率具体值
 func SampleRate(index int) int {
-	return sampleRates[sampleRate]
+	return sampleRates[index]
 }
 
 // 采用频率

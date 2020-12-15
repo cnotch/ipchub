@@ -18,21 +18,19 @@ const (
 	TransferPrefix = byte(0x24) // $
 )
 
-// Channel RTP 通道类型
-type Channel byte
-
 // 预定义 RTP 通道类型
 const (
-	ChannelVideo        = Channel(iota) // 视频通道
-	ChannelVideoControl                 // 视频控制通道
-	ChannelAudio                        // 音频通道
-	ChannelAudioControl                 // 音频控制通道
-	ChannelCount                        // 支持的 RTP 通道类型数量
-	ChannelMin          = ChannelVideo  // 支持的 RTP 通道类型最小值
+	ChannelVideo        = iota         // 视频通道
+	ChannelVideoControl                // 视频控制通道
+	ChannelAudio                       // 音频通道
+	ChannelAudioControl                // 音频控制通道
+	ChannelCount                       // 支持的 RTP 通道类型数量
+	ChannelMin          = ChannelVideo // 支持的 RTP 通道类型最小值
 )
 
-func (ct Channel) String() string {
-	switch ct {
+// ChannelName 通道名
+func ChannelName(channel int) string {
+	switch channel {
 	case ChannelAudio:
 		return "audio"
 	case ChannelVideo:
@@ -47,9 +45,9 @@ func (ct Channel) String() string {
 
 // Packet RTP 数据包
 type Packet struct {
-	Channel    Channel // 通道
-	Data       []byte  // 数据
-	rtp.Header         // Video 、Audio Channel'Header
+	Channel    byte   // 通道
+	Data       []byte // 数据
+	rtp.Header        // Video 、Audio Channel'Header
 }
 
 func (p *Packet) decode(prefix [4]byte, r *bufio.Reader, channels []int) error {
@@ -69,7 +67,7 @@ func (p *Packet) decode(prefix [4]byte, r *bufio.Reader, channels []int) error {
 	p.Data = rtpBytes
 	for i, v := range channels {
 		if v == channel {
-			p.Channel = Channel(i)
+			p.Channel = byte(i)
 			if p.Channel == ChannelVideo || p.Channel == ChannelAudio {
 				if err = p.Header.Unmarshal(p.Data); err != nil {
 					return err
