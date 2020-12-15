@@ -11,9 +11,9 @@ import (
 
 // RawSPS .
 type RawSPS struct {
-	Profile
-	SampleRate
-	ChannelConfig
+	Profile       byte
+	SampleRate    byte
+	ChannelConfig byte
 }
 
 // DecodeString 从 hex 字串解码 sps
@@ -31,10 +31,10 @@ func (sps *RawSPS) Decode(config []byte) error {
 		return errors.New("config miss data")
 	}
 	// 5 bits
-	sps.Profile = Profile(config[0] >> 3)
+	sps.Profile = config[0] >> 3
 	// 4 bits
-	sps.SampleRate = SampleRate((config[0]&0x07)<<1 | (config[1] >> 7))
+	sps.SampleRate = (config[0]&0x07)<<1 | (config[1] >> 7)
 	// 4 bits
-	sps.ChannelConfig = ChannelConfig((config[1] >> 3) & 0x0f)
+	sps.ChannelConfig = (config[1] >> 3) & 0x0f
 	return nil
 }

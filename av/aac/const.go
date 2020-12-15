@@ -9,39 +9,33 @@ const (
 	SamplesPerFrame = 1024
 )
 
-// Profile 表示使用哪个级别的 AAC。
+// AAC Profile 表示使用哪个级别的 AAC。
 // 如 01 Low Complexity(LC) – AAC LC
-type Profile byte
-
-// AAC 级别
 const (
-	ProfileMain = Profile(iota) // Main profile
-	ProfileLC                   // Low Complexity profile (LC)
-	ProfileSSR                  // Scalable Sampling Rate profile (SSR)
+	ProfileMain = iota // 0 Main profile
+	ProfileLC          // 1 Low Complexity profile (LC)
+	ProfileSSR         // 2 Scalable Sampling Rate profile (SSR)
 )
 
-// SampleRate 采用频率
-type SampleRate byte
-
-// AAC 采用频率
+// AAC 采样频率
 const (
-	SampleRate96000 = SampleRate(iota) // 0
-	SampleRate88200                    // 1
-	SampleRate64000                    // 2
-	SampleRate48000                    // 3
-	SampleRate44100                    // 4
-	SampleRate32000                    // 5
-	SampleRate24000                    // 6
-	SampleRate22050                    // 7
-	SampleRate16000                    // 8
-	SampleRate12000                    // 9
-	SampleRate11025                    // 10
-	SampleRate8000                     // 11
-	SampleRate7350                     // 12
+	SampleRate96000 = iota // 0
+	SampleRate88200        // 1
+	SampleRate64000        // 2
+	SampleRate48000        // 3
+	SampleRate44100        // 4
+	SampleRate32000        // 5
+	SampleRate24000        // 6
+	SampleRate22050        // 7
+	SampleRate16000        // 8
+	SampleRate12000        // 9
+	SampleRate11025        // 10
+	SampleRate8000         // 11
+	SampleRate7350         // 12
 )
 
-// Value 获取采用频率具体值
-func (sampleRate SampleRate) Value() int {
+// SampleRate 获取采用频率具体值
+func SampleRate(index int) int {
 	return sampleRates[sampleRate]
 }
 
@@ -52,10 +46,7 @@ var sampleRates = []int{
 	16000, 12000, 11025, 8000,
 	7350}
 
-// ChannelConfig ACC 通道配置
-type ChannelConfig byte
-
-// ACC 声道
+// ACC ChannelConfig 声道配置
 // 0x00 - defined in audioDecderSpecificConfig
 // 0x01 单声道（center front speaker）
 // 0x02 双声道（left, right front speakers）
@@ -66,13 +57,13 @@ type ChannelConfig byte
 // 0x07 7.1声道（center, left, right center front speakers, left, right outside front speakers, left surround, right surround rear speakers, front low frequency effects speaker)
 // 0x08-0x0F - reserved
 const (
-	ChannelSpecific     = ChannelConfig(iota) // 0
-	ChannelMono                               // 1
-	ChannelStereo                             // 2
-	ChannelThree                              // 3
-	ChannelFour                               // 4
-	ChannelFive                               // 5
-	ChannelFivePlusOne                        // 6
-	ChannelSevenPlusOne                       // 7
-	ChannelReserved                           // 8
+	ChannelSpecific     = iota // 0
+	ChannelMono                // 1
+	ChannelStereo              // 2
+	ChannelThree               // 3
+	ChannelFour                // 4
+	ChannelFive                // 5
+	ChannelFivePlusOne         // 6
+	ChannelSevenPlusOne        // 7
+	ChannelReserved            // 8
 )
