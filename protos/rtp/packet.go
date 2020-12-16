@@ -58,19 +58,19 @@ type Packet struct {
 	rtp.Header        // Video 、Audio Channel'Header
 }
 
-// Decode 根据规范从 r 中解码.
+// ReadPacket 根据规范从 r 中读取 rtp 包.
 // channelConfig 提供通道类型所在通道的配置信息
-func (p *Packet) Decode(r *bufio.Reader, channelConfig []int) error {
+func ReadPacket(r *bufio.Reader, channelConfig []int) (*Packet, error) {
 	var err error
 
 	var prefix [4]byte
 	// 读前缀4字节
 	if _, err = io.ReadFull(r, prefix[:]); err != nil {
-		return err
+		return nil, err
 	}
 
 	if prefix[0] != TransferPrefix {
-		return errors.New("RTP Pack must start with `$`")
+		return nil, errors.New("RTP Pack must start with `$`")
 	}
 
 	channel := int(prefix[1])
@@ -79,32 +79,33 @@ func (p *Packet) Decode(r *bufio.Reader, channelConfig []int) error {
 	// 读取包数据
 	rtpBytes := make([]byte, rtpLen)
 	if _, err = io.ReadFull(r, rtpBytes); err != nil {
-		return err
+		return nil, err
 	}
 
+	var p = new(Packet)
 	p.Data = rtpBytes
 	for i, v := range channelConfig {
 		if v == channel {
 			p.Channel = byte(i)
 			if p.Channel == ChannelVideo || p.Channel == ChannelAudio {
 				if err = p.Header.Unmarshal(p.Data); err != nil {
-					return err
+					return nil, err
 				}
 			}
-			return nil
+			return p, nil
 		}
 	}
-	return errors.New("RTP Packet illegal channel")
+	return nil, errors.New("RTP Packet illegal channel")
 }
 
-// Encode 根据规范将 RTP 包编码到 w
+// Write 根据规范将 RTP 包输出到 w
 // channelConfig 提供通道类型所在通道的配置信息
-func (p *Packet) Encode(w io.Writer, channels []int) error {
+func (p *Packet) Write(w io.Writer, channelConfig []int) error {
 	if p.Channel >= ChannelCount {
 		return errors.New("unknow pack type")
 	}
 
-	ch := channels[p.Channel]
+	ch := channelConfig[p.Channel]
 	if ch < 0 || ch > 255 { // 可能是未订阅，忽略
 		return nil
 	}
