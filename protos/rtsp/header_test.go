@@ -12,36 +12,36 @@ import (
 	"testing"
 )
 
-func TestDecodeHeader(t *testing.T) {
+func TestReadHeader(t *testing.T) {
 	tests := headerTestCases()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := DecodeHeader(bufio.NewReader(bytes.NewBufferString(tt.str)))
+			got, err := ReadHeader(bufio.NewReader(bytes.NewBufferString(tt.str)))
 			if err != nil {
-				t.Errorf("DecodeHeader() error = %v", err)
+				t.Errorf("ReadHeader() error = %v", err)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.header) {
-				t.Errorf("DecodeHeader() = %v, want %v", got, tt.header)
+				t.Errorf("ReadHeader() = %v, want %v", got, tt.header)
 			}
 		})
 	}
 }
 
-func TestHeader_EncodeTo(t *testing.T) {
+func TestHeader_Write(t *testing.T) {
 	tests := headerTestCases()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer(make([]byte, 0, 1024))
 
-			err := tt.header.EncodeTo(buf)
+			err := tt.header.Write(buf)
 			got := string(buf.Bytes())
 			if err != nil {
-				t.Errorf("Header.EncodeTo() error = %v", err)
+				t.Errorf("Header.Write() error = %v", err)
 				return
 			}
 			if got != tt.str {
-				t.Errorf("Header.EncodeTo() = %v, want %v", got, tt.str)
+				t.Errorf("Header.Write() = %v, want %v", got, tt.str)
 			}
 		})
 	}

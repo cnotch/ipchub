@@ -155,8 +155,8 @@ func (h Header) clone() Header {
 	return h2
 }
 
-// DecodeHeader 根据规范的格式从 r 中解码 Header
-func DecodeHeader(r *bufio.Reader) (Header, error) {
+// ReadHeader 根据规范的格式从 r 中读取 Header
+func ReadHeader(r *bufio.Reader) (Header, error) {
 	h := make(Header, 6) // 多数情况够了
 	for {
 		var kv string
@@ -204,8 +204,8 @@ func DecodeHeader(r *bufio.Reader) (Header, error) {
 	return h, nil
 }
 
-// EncodeTo 用规范的格式向 w 中编码 Header
-func (h Header) EncodeTo(w io.Writer) error {
+// Write 根据规范将 Header 输出到 w
+func (h Header) Write(w io.Writer) error {
 	ws, ok := w.(writeStringer)
 	if !ok {
 		ws = stringWriter{w}

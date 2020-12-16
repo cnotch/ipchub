@@ -52,11 +52,18 @@ type Request struct {
 	Body   string   // 请求的消息体。
 }
 
-func decodeRequest(initialLine string, r *bufio.Reader) (*Request, error) {
+// ReadRequest 根据规范从 r 中读取 Request
+func ReadRequest(r *bufio.Reader) (*Request, error) {
 	var err error
-	var req = new(Request)
 
-	line := initialLine
+	// 读取并解析首行
+	var line string
+	line, err = readLine(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var req = new(Request)
 	s1 := strings.Index(line, " ")
 	s2 := strings.Index(line[s1+1:], " ")
 	if s1 < 0 || s2 < 0 {
@@ -89,7 +96,7 @@ func decodeRequest(initialLine string, r *bufio.Reader) (*Request, error) {
 	}
 
 	// 读取 Header
-	if req.Header, err = DecodeHeader(r); err != nil {
+	if req.Header, err = ReadHeader(r); err != nil {
 		return nil, err
 	}
 
@@ -104,28 +111,8 @@ func decodeRequest(initialLine string, r *bufio.Reader) (*Request, error) {
 	return req, nil
 }
 
-// DecodeRequest 根据规范从 r 中解码 Request
-func DecodeRequest(r *bufio.Reader) (*Request, error) {
-	var err error
-
-	// 读取并解析首行
-	var line string
-	line, err = readLine(r)
-	if err != nil {
-		return nil, err
-	}
-
-	return decodeRequest(line, r)
-}
-
-func (req *Request) String() string {
-	buf := bytes.Buffer{}
-	req.EncodeTo(&buf)
-	return buf.String()
-}
-
-// EncodeTo 根据规范将 Request 编码到 w
-func (req *Request) EncodeTo(w io.Writer) error {
+// Write 根据规范将 Request 输出到 w
+func (req *Request) Write(w io.Writer) error {
 	ws, ok := w.(writeStringer)
 	if !ok {
 		ws = stringWriter{w}
@@ -146,7 +133,7 @@ func (req *Request) EncodeTo(w io.Writer) error {
 	} else {
 		delete(req.Header, FieldContentLength)
 	}
-	if err := req.Header.EncodeTo(w); err != nil {
+	if err := req.Header.Write(w); err != nil {
 		return err
 	}
 
@@ -158,6 +145,12 @@ func (req *Request) EncodeTo(w io.Writer) error {
 	}
 
 	return nil
+}
+
+func (req *Request) String() string {
+	buf := bytes.Buffer{}
+	req.Write(&buf)
+	return buf.String()
 }
 
 // BasicAuth returns the username and password provided in the request's

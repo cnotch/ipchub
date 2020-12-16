@@ -13,36 +13,36 @@ import (
 	"testing"
 )
 
-func TestDecodeRequest(t *testing.T) {
+func TestReadRequest(t *testing.T) {
 	tests := requestTestCases()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := DecodeRequest(bufio.NewReader(bytes.NewBufferString(tt.str)))
+			got, err := ReadRequest(bufio.NewReader(bytes.NewBufferString(tt.str)))
 			if err != nil {
-				t.Errorf("DecodeRequest() error = %v", err)
+				t.Errorf("ReadRequest() error = %v", err)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.req) {
-				t.Errorf("DecodeRequest() = %v, want %v", got, tt.req)
+				t.Errorf("ReadRequest() = %v, want %v", got, tt.req)
 			}
 		})
 	}
 }
 
-func TestRequest_EncodeTo(t *testing.T) {
+func TestRequest_Write(t *testing.T) {
 	tests := requestTestCases()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := bytes.NewBuffer(make([]byte, 0, 1024))
-			err := tt.req.EncodeTo(buf)
+			err := tt.req.Write(buf)
 			if err != nil {
-				t.Errorf("Request.EncodeTo() error = %v", err)
+				t.Errorf("Request.Write() error = %v", err)
 				return
 			}
 			got := string(buf.Bytes())
 
 			if got != tt.str {
-				t.Errorf("Request.EncodeTo() = %v, want %v", got, tt.str)
+				t.Errorf("Request.Write() = %v, want %v", got, tt.str)
 			}
 		})
 	}

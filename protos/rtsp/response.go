@@ -136,8 +136,15 @@ type Response struct {
 	Request    *Request
 }
 
-func decodeResponse(initialLine string, r *bufio.Reader) (*Response, error) {
+// ReadResponse 根据规范从 r 中读取 Response
+func ReadResponse(r *bufio.Reader) (*Response, error) {
 	var err error
+
+	// 读取并解析首行
+	var line string
+	if line, err = readLine(r); err != nil {
+		return nil, err
+	}
 	var resp = new(Response)
 
 	defer func() {
@@ -146,7 +153,6 @@ func decodeResponse(initialLine string, r *bufio.Reader) (*Response, error) {
 		}
 	}()
 
-	line := initialLine
 	var i int
 	if i = strings.IndexByte(line, ' '); i < 0 {
 		return nil, &badStringError{"malformed RTSP response", line}
@@ -168,7 +174,7 @@ func decodeResponse(initialLine string, r *bufio.Reader) (*Response, error) {
 	}
 
 	// 读取 Header
-	if resp.Header, err = DecodeHeader(r); err != nil {
+	if resp.Header, err = ReadHeader(r); err != nil {
 		return nil, err
 	}
 
@@ -183,26 +189,8 @@ func decodeResponse(initialLine string, r *bufio.Reader) (*Response, error) {
 	return resp, nil
 }
 
-// DecodeResponse 根据规范从 r 中解码 Response
-func DecodeResponse(r *bufio.Reader) (*Response, error) {
-	var err error
-
-	// 读取并解析首行
-	var line string
-	if line, err = readLine(r); err != nil {
-		return nil, err
-	}
-	return decodeResponse(line, r)
-}
-
-func (resp *Response) String() string {
-	buf := bytes.Buffer{}
-	resp.EncodeTo(&buf)
-	return buf.String()
-}
-
-// EncodeTo 根据规范将 Response 编码到 w
-func (resp *Response) EncodeTo(w io.Writer) error {
+// Write 根据规范将 Response 输出到 w
+func (resp *Response) Write(w io.Writer) error {
 	ws, ok := w.(writeStringer)
 	if !ok {
 		ws = stringWriter{w}
@@ -234,7 +222,7 @@ func (resp *Response) EncodeTo(w io.Writer) error {
 	} else {
 		delete(resp.Header, FieldContentLength)
 	}
-	if err := resp.Header.EncodeTo(w); err != nil {
+	if err := resp.Header.Write(w); err != nil {
 		return err
 	}
 
@@ -246,6 +234,12 @@ func (resp *Response) EncodeTo(w io.Writer) error {
 	}
 
 	return nil
+}
+
+func (resp *Response) String() string {
+	buf := bytes.Buffer{}
+	resp.Write(&buf)
+	return buf.String()
 }
 
 // BasicAuth 获取基本认证信息
