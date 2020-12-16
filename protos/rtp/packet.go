@@ -28,6 +28,14 @@ const (
 	ChannelMin          = ChannelVideo // 支持的 RTP 通道类型最小值
 )
 
+// DefaultChannelConfig 默认的通道配置
+var DefaultChannelConfig = []int{
+	ChannelVideo,
+	ChannelVideoControl,
+	ChannelAudio,
+	ChannelAudioControl,
+}
+
 // ChannelName 通道名
 func ChannelName(channel int) string {
 	switch channel {
@@ -50,11 +58,21 @@ type Packet struct {
 	rtp.Header        // Video 、Audio Channel'Header
 }
 
-func (p *Packet) decode(prefix [4]byte, r *bufio.Reader, channels []int) error {
+// Decode 根据规范从 r 中解码.
+// channelConfig 提供通道类型所在通道的配置信息
+func (p *Packet) Decode(r *bufio.Reader, channelConfig []int) error {
 	var err error
+
+	var prefix [4]byte
+	// 读前缀4字节
+	if _, err = io.ReadFull(r, prefix[:]); err != nil {
+		return err
+	}
+
 	if prefix[0] != TransferPrefix {
 		return errors.New("RTP Pack must start with `$`")
 	}
+
 	channel := int(prefix[1])
 	rtpLen := int(binary.BigEndian.Uint16(prefix[2:]))
 
@@ -65,7 +83,7 @@ func (p *Packet) decode(prefix [4]byte, r *bufio.Reader, channels []int) error {
 	}
 
 	p.Data = rtpBytes
-	for i, v := range channels {
+	for i, v := range channelConfig {
 		if v == channel {
 			p.Channel = byte(i)
 			if p.Channel == ChannelVideo || p.Channel == ChannelAudio {
@@ -77,29 +95,11 @@ func (p *Packet) decode(prefix [4]byte, r *bufio.Reader, channels []int) error {
 		}
 	}
 	return errors.New("RTP Packet illegal channel")
-
 }
 
-// Decode 根据规范从 r 中解码.
-// channels 包含包类型对应的通道信息，以便提取通道类型
-func (p *Packet) Decode(r *bufio.Reader, channels []int) error {
-	var err error
-
-	var prefix [4]byte
-	// 读前缀4字节
-	if _, err = io.ReadFull(r, prefix[:]); err != nil {
-		return err
-	}
-	return p.decode(prefix, r, channels)
-}
-
-// Len 返回包在 RTP 中的传输长度
-func (p *Packet) Len() int {
-	return len(p.Data) + 4
-}
-
-// EncodeTo 根据规范将 RTP 包编码到 w
-func (p *Packet) EncodeTo(w io.Writer, channels []int) error {
+// Encode 根据规范将 RTP 包编码到 w
+// channelConfig 提供通道类型所在通道的配置信息
+func (p *Packet) Encode(w io.Writer, channels []int) error {
 	if p.Channel >= ChannelCount {
 		return errors.New("unknow pack type")
 	}
@@ -125,6 +125,11 @@ func (p *Packet) EncodeTo(w io.Writer, channels []int) error {
 	}
 
 	return nil
+}
+
+// Len 返回包在 RTP 中的传输长度
+func (p *Packet) Len() int {
+	return len(p.Data) + 4
 }
 
 // Payload 数据包中实际的载荷
