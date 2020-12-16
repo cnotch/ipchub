@@ -188,9 +188,9 @@ func AudioCodecName(codec int32) string {
 //     0 = AAC sequence header
 //     1 = AAC raw
 const (
-	CodecAudioTypeSequenceHeader = 0 // 序列头
-	CodecAudioTypeRawData        = 1 // 原始数据
-	CodecAudioTypeReserved       = 2
+	CodecAudioAACSequenceHeader = 0 // 序列头
+	CodecAudioAACRawData        = 1 // 原始数据
+	CodecAudioAACReserved       = 2
 )
 
 // the FLV/RTMP supported audio sample rate.
