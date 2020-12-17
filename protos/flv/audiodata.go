@@ -118,7 +118,7 @@ const (
 //
 // 对于 SoundFormat == SoundFormatAAC，Body 值:
 // IF AACPacketType == AACPacketTypeSequenceHeader
-// 　AudioSpecificConfig
+// 　AudioSpecificConfig 参考 AAC.RawSPS
 // ELSE
 // 　Raw AAC frame data
 type AudioData struct {
