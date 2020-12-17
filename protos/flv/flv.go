@@ -20,6 +20,7 @@ const (
 	FlvHeaderSize  = 9
 	TypeFlagsVideo = 0x04
 	TypeFlagsAudio = 0x01
+	TypeFlagsOffset = 4
 )
 
 var flvHeaderTemplate = []byte{0x46, 0x4c, 0x56, 0x01, 0x00, 0x00, 0x00, 0x00, 0x09}
@@ -27,7 +28,7 @@ var flvHeaderTemplate = []byte{0x46, 0x4c, 0x56, 0x01, 0x00, 0x00, 0x00, 0x00, 0
 // Reader flv Reader
 type Reader struct {
 	r               io.Reader
-	header          [FlvHeaderSize]byte // flv header
+	Header          [FlvHeaderSize]byte // flv header
 	previousTagSize uint32
 }
 
@@ -39,13 +40,13 @@ func NewReader(r io.Reader) (*Reader, error) {
 	}
 
 	// read flv header
-	if _, err := io.ReadFull(r, reader.header[:]); err != nil {
+	if _, err := io.ReadFull(r, reader.Header[:]); err != nil {
 		return nil, err
 	}
 	// 简单验证
-	if reader.header[0] != 'F' ||
-		reader.header[1] != 'L' ||
-		reader.header[2] != 'V' {
+	if reader.Header[0] != 'F' ||
+		reader.Header[1] != 'L' ||
+		reader.Header[2] != 'V' {
 		return nil, errors.New("Signatures must is 'FLV'")
 	}
 
@@ -80,12 +81,12 @@ func (r *Reader) Read() (*Tag, error) {
 
 // HasVideo flv include video stream.
 func (r *Reader) HasVideo() bool {
-	return r.header[5]&TypeFlagsVideo != 0
+	return r.Header[TypeFlagsOffset]&TypeFlagsVideo != 0
 }
 
 // HasAudio flv include audio stream.
 func (r *Reader) HasAudio() bool {
-	return r.header[5]&TypeFlagsAudio != 0
+	return r.Header[TypeFlagsOffset]&TypeFlagsAudio != 0
 }
 
 // Writer flv Writer
@@ -107,7 +108,7 @@ func NewWriter(w io.Writer, typeFlags byte) (*Writer, error) {
 
 	var flvHeader [FlvHeaderSize]byte
 	copy(flvHeader[:], flvHeaderTemplate[:])
-	flvHeader[5] = typeFlags & (TypeFlagsVideo | TypeFlagsAudio)
+	flvHeader[TypeFlagsOffset] = typeFlags & (TypeFlagsVideo | TypeFlagsAudio)
 	if _, err := w.Write(flvHeader[:]); err != nil {
 		return nil, err
 	}
@@ -119,7 +120,7 @@ func NewWriter(w io.Writer, typeFlags byte) (*Writer, error) {
 func (w *Writer) Write(tag *Tag) error {
 	var buff [4]byte
 	// write PreviousTagSize
-	binary.BigEndian.PutUint32(buff[0:], w.previousTagLen)
+	binary.BigEndian.PutUint32(buff[:], w.previousTagLen)
 	if _, err := w.w.Write(buff[:]); err != nil {
 		return err
 	}

@@ -93,11 +93,11 @@ func (tag *Tag) Write(w io.Writer) error {
 	offset += 4
 
 	// timestamp
-	binary.BigEndian.PutUint32(tagHeader[offset:], (tag.Timestamp<<24)|uint32(tag.TimestampExtended))
+	binary.BigEndian.PutUint32(tagHeader[offset:], (tag.Timestamp<<8)|uint32(tag.TimestampExtended))
 	offset += 4
 
 	// stream id
-	binary.BigEndian.PutUint32(tagHeader[offset:], tag.StreamID<<24)
+	binary.BigEndian.PutUint32(tagHeader[offset:], tag.StreamID<<8)
 	offset += 3
 
 	// write tag header
@@ -113,8 +113,9 @@ func (tag *Tag) Write(w io.Writer) error {
 	return nil
 }
 
-// TypedData tag typed data
-type TypedData interface {
+// TagData tag data
+type TagData interface {
+	Type() byte // TagType
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error
 }
