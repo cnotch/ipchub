@@ -44,7 +44,6 @@ func (tag Tag) Size() int {
 }
 
 // Read 根据规范的格式从 r 中读取 flv Tag。
-// 在完成了 tag 的读取后，验证为下一个 Tag 准备的 PreviousTagSize。
 func (tag *Tag) Read(r io.Reader) error {
 	var tagHeader [TagHeaderSize]byte
 	if _, err := io.ReadFull(r, tagHeader[:]); err != nil {
@@ -82,7 +81,6 @@ func (tag *Tag) Read(r io.Reader) error {
 }
 
 // Write 根据规范将 flv Tag 输出到 w。
-// 同时会写入为下一个 Tag 准备的 PreviousTagSize。
 func (tag *Tag) Write(w io.Writer) error {
 	var tagHeader [TagHeaderSize + 1]byte
 	offset := 0
@@ -113,4 +111,10 @@ func (tag *Tag) Write(w io.Writer) error {
 	}
 
 	return nil
+}
+
+// TypedData tag typed data
+type TypedData interface {
+	Marshal() ([]byte, error)
+	Unmarshal(data []byte) error
 }
