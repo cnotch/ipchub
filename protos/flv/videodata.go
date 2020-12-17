@@ -4,6 +4,11 @@
 
 package flv
 
+import (
+	"encoding/binary"
+	"errors"
+)
+
 // E.4.3.1 VIDEODATA
 // Frame Type UB [4]
 // Type of video frame. The following values are defined:
@@ -93,4 +98,149 @@ type VideoData struct {
 	AVCPacketType   byte   // 8 bits; 仅 AVC 编码有效，AVC 包类型
 	CompositionTime uint32 // 24 bits; 仅 AVC 编码有效，表示PTS 与 DTS 的时间偏移值，单位 ms，记作 CTS。
 	Body            []byte // 原始视频
+}
+
+// Unmarshal .
+// Note: Unmarshal not copy the data
+func (videoData *VideoData) Unmarshal(data []byte) error {
+	if len(data) < 5 {
+		return errors.New("data.length < 5")
+	}
+
+	offset := 0
+
+	videoData.FrameType = data[offset] >> 4
+	videoData.CodecID = data[offset] & 0x0f
+	offset++
+
+	if videoData.CodecID == CodecIDAVC {
+		temp := binary.BigEndian.Uint32(data[offset:])
+		videoData.AVCPacketType = byte(temp >> 24)
+		videoData.CompositionTime = temp & 0x00ffffff
+		offset += 4
+	}
+
+	videoData.Body = data[offset:]
+	return nil
+}
+
+// Marshal .
+func (videoData *VideoData) Marshal() ([]byte, error) {
+	buff := make([]byte, 5+len(videoData.Body))
+	offset := 0
+	buff[offset] = (videoData.FrameType << 4) | (videoData.CodecID & 0x0f)
+
+	offset++
+	if videoData.CodecID == CodecIDAVC {
+		binary.BigEndian.PutUint32(buff[offset:],
+			(uint32(videoData.AVCPacketType)<<24)|(videoData.CompositionTime&0x00ffffff))
+		offset += 4
+	}
+
+	offset += copy(buff[offset:], videoData.Body)
+
+	return buff[:offset], nil
+}
+
+// AVCDecoderConfigurationRecord .
+type AVCDecoderConfigurationRecord struct {
+	ConfigurationVersion byte
+	AVCProfileIndication byte
+	ProfileCompatibility byte
+	AVCLevelIndication   byte
+	SPS                  []byte
+	PPS                  []byte
+}
+
+// Unmarshal .
+// Note: Unmarshal not copy the data
+func (record *AVCDecoderConfigurationRecord) Unmarshal(data []byte) error {
+	if len(data) < 11 {
+		return errors.New("data.length < 11")
+	}
+
+	offset := 0
+
+	record.ConfigurationVersion = data[offset]
+	offset++
+
+	record.AVCProfileIndication = data[offset]
+	offset++
+
+	record.ProfileCompatibility = data[offset]
+	offset++
+
+	record.AVCLevelIndication = data[offset]
+	offset++
+
+	offset += 2 //
+
+	spsLen := binary.BigEndian.Uint16(data[offset:])
+	offset += 2
+
+	if len(data) < 11+int(spsLen) {
+		return errors.New("Insufficient Data: SPS")
+	}
+	record.SPS = data[offset : offset+int(spsLen)]
+	offset += int(spsLen)
+
+	offset++
+
+	ppsLen := binary.BigEndian.Uint16(data[offset:])
+	offset += 2
+
+	if len(data) < 11+int(spsLen)+int(ppsLen) {
+		return errors.New("Insufficient Data: PPS")
+	}
+	record.PPS = data[offset : offset+int(ppsLen)]
+	return nil
+}
+
+// Marshal .
+func (record *AVCDecoderConfigurationRecord) Marshal() ([]byte, error) {
+	buff := make([]byte, 4+2+2+len(record.SPS)+1+2+len(record.PPS))
+
+	offset := 0
+
+	buff[offset] = record.ConfigurationVersion
+	offset++
+
+	buff[offset] = record.AVCProfileIndication
+	offset++
+
+	buff[offset] = record.ProfileCompatibility
+	offset++
+
+	buff[offset] = record.AVCLevelIndication
+	offset++
+
+	// lengthSizeMinusOne 是 H.264 视频中 NALU 的长度，
+	// 计算方法是 1 + (lengthSizeMinusOne & 3)，实际计算结果一直是4
+	buff[offset] = 0xff
+	offset++
+
+	// numOfSequenceParameterSets SPS 的个数，计算方法是 numOfSequenceParameterSets & 0x1F，
+	// 实际计算结果一直为1
+	buff[offset] = 0xe1
+	offset++
+
+	// sequenceParameterSetLength SPS 的长度
+	binary.BigEndian.PutUint16(buff[offset:], uint16(len(record.SPS)))
+	offset += 2
+
+	// SPS data
+	offset += copy(buff[offset:], record.SPS)
+
+	// numOfPictureParameterSets PPS 的个数
+	buff[offset] = 0x01
+	offset++
+
+	// pictureParameterSetLength SPS 的长度
+	binary.BigEndian.PutUint16(buff[offset:], uint16(len(record.PPS)))
+	offset += 2
+
+	// PPS data
+	offset += copy(buff[offset:], record.PPS)
+
+	return buff, nil
 }
