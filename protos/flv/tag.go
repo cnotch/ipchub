@@ -115,7 +115,6 @@ func (tag *Tag) Write(w io.Writer) error {
 
 // TagData tag data
 type TagData interface {
-	Type() byte // TagType
 	Marshal() ([]byte, error)
 	Unmarshal(data []byte) error
 }

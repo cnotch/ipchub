@@ -4,6 +4,8 @@
 
 package flv
 
+import "errors"
+
 // SoundFormat UB [4]
 // Format of SoundData. The following values are defined:
 //     0 = Linear PCM, platform endian
@@ -122,8 +124,51 @@ const (
 type AudioData struct {
 	SoundFormat   byte   // 4 bits; 音频编码格式
 	SoundRate     byte   // 2 bits; 音频采样率
-	SoundeSize    byte   // 1 bits; 音频采用大小
+	SoundSize     byte   // 1 bits; 音频采用大小
 	SoundType     byte   // 1 bits; 音频通道类型
 	AACPacketType byte   // 8 bits; AAC 编码音频的包类型，仅但 SoundFormat 为 AAC 有效
 	Body          []byte // 原始音频
+}
+
+// Unmarshal .
+// Note: Unmarshal not copy the data
+func (audioData *AudioData) Unmarshal(data []byte) error {
+	if len(data) < 2 {
+		return errors.New("data.length < 2")
+	}
+
+	offset := 0
+	audioData.SoundFormat = data[offset] >> 4
+	audioData.SoundRate = (data[offset] >> 2) & 0x03
+	audioData.SoundSize = (data[offset] >> 1) & 0x01
+	audioData.SoundType = data[offset] & 0x01
+
+	offset++
+	if audioData.SoundFormat == SoundFormatAAC {
+		audioData.AACPacketType = data[offset]
+		offset++
+	}
+	audioData.Body = data[offset:]
+
+	return nil
+}
+
+// Marshal .
+func (audioData *AudioData) Marshal() ([]byte, error) {
+	buff := make([]byte, 2+len(audioData.Body))
+	offset := 0
+	buff[offset] = (audioData.SoundFormat << 4) |
+		((audioData.SoundRate & 0x03) << 2) |
+		((audioData.SoundSize & 0x01) << 1) |
+		(audioData.SoundType & 0x01)
+
+	offset++
+	if audioData.SoundFormat == SoundFormatAAC {
+		buff[offset] = audioData.AACPacketType
+		offset++
+	}
+
+	offset += copy(buff[offset:], audioData.Body)
+
+	return buff[:offset], nil
 }
