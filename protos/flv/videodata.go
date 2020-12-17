@@ -152,6 +152,18 @@ type AVCDecoderConfigurationRecord struct {
 	PPS                  []byte
 }
 
+// NewAVCDecoderConfigurationRecord creates and initializes a new AVCDecoderConfigurationRecord
+func NewAVCDecoderConfigurationRecord(sps, pps []byte) *AVCDecoderConfigurationRecord {
+	return &AVCDecoderConfigurationRecord{
+		ConfigurationVersion: 1,
+		AVCProfileIndication: sps[1],
+		ProfileCompatibility: sps[2],
+		AVCLevelIndication:   sps[3],
+		SPS:                  sps,
+		PPS:                  pps,
+	}
+}
+
 // Unmarshal .
 // Note: Unmarshal not copy the data
 func (record *AVCDecoderConfigurationRecord) Unmarshal(data []byte) error {
