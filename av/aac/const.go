@@ -36,11 +36,11 @@ const (
 
 // SampleRate 获取采用频率具体值
 func SampleRate(index int) int {
-	return sampleRates[index]
+	return SampleRates[index]
 }
 
-// 采用频率
-var sampleRates = []int{
+// SampleRates 采用频率集合
+var SampleRates = []int{
 	96000, 88200, 64000, 48000,
 	44100, 32000, 24000, 22050,
 	16000, 12000, 11025, 8000,
