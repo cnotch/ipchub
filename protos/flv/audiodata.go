@@ -153,9 +153,14 @@ func (audioData *AudioData) Unmarshal(data []byte) error {
 	return nil
 }
 
+// MarshalSize .
+func (audioData *AudioData) MarshalSize() int {
+	return 2 + len(audioData.Body)
+}
+
 // Marshal .
 func (audioData *AudioData) Marshal() ([]byte, error) {
-	buff := make([]byte, 2+len(audioData.Body))
+	buff := make([]byte, audioData.MarshalSize())
 	offset := 0
 	buff[offset] = (audioData.SoundFormat << 4) |
 		((audioData.SoundRate & 0x03) << 2) |

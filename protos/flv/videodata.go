@@ -124,9 +124,14 @@ func (videoData *VideoData) Unmarshal(data []byte) error {
 	return nil
 }
 
+// MarshalSize .
+func (videoData *VideoData) MarshalSize() int {
+	return 5 + len(videoData.Body)
+}
+
 // Marshal .
 func (videoData *VideoData) Marshal() ([]byte, error) {
-	buff := make([]byte, 5+len(videoData.Body))
+	buff := make([]byte, videoData.MarshalSize())
 	offset := 0
 	buff[offset] = (videoData.FrameType << 4) | (videoData.CodecID & 0x0f)
 
@@ -208,9 +213,14 @@ func (record *AVCDecoderConfigurationRecord) Unmarshal(data []byte) error {
 	return nil
 }
 
+// MarshalSize .
+func (record *AVCDecoderConfigurationRecord) MarshalSize() int {
+	return 4 + 2 + 2 + len(record.SPS) + 1 + 2 + len(record.PPS)
+}
+
 // Marshal .
 func (record *AVCDecoderConfigurationRecord) Marshal() ([]byte, error) {
-	buff := make([]byte, 4+2+2+len(record.SPS)+1+2+len(record.PPS))
+	buff := make([]byte, record.MarshalSize())
 
 	offset := 0
 
