@@ -1,5 +1,3 @@
-// Copyright calabashdad. https://github.com/calabashdad/seal.git
-//
 // Copyright (c) 2019,CAOHONGJU All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
@@ -80,7 +78,7 @@ func ReadAny(r io.Reader) (value interface{}, err error) {
 	case TypeUnSupported:
 		value = UnSupportedValue{}
 	default:
-		err = fmt.Errorf("Amf0ReadAny: unsupported marker: %d", marker)
+		err = fmt.Errorf("Amf0ReadAny: unsupported marker - %d", marker)
 	}
 	return
 }

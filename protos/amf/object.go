@@ -37,7 +37,7 @@ func ReadEcmaArray(r io.Reader) (value EcmaArray, err error) {
 	}
 
 	if TypeEcmaArray != buff[0] {
-		err = fmt.Errorf("error: Amf0ReadEcmaArray: TypeEcmaArray != marker")
+		err = fmt.Errorf("Amf0ReadEcmaArray: TypeEcmaArray != marker")
 		return
 	}
 	return readEcmaArray(r)
@@ -112,7 +112,7 @@ func ReadObject(r io.Reader) (value Object, err error) {
 	}
 
 	if TypeObject != data[0] {
-		err = fmt.Errorf("error: Amf0ReadObject: TypeObject != marker")
+		err = fmt.Errorf("Amf0ReadObject: TypeObject != marker")
 		return
 	}
 	return readObject(r)
@@ -174,7 +174,7 @@ func ReadStrictArray(r io.Reader) (value StrictArray, err error) {
 	}
 
 	if TypeStrictArray != buff[0] {
-		err = fmt.Errorf("error: Amf0ReadStrictArray: TypeStrictArray != marker")
+		err = fmt.Errorf("Amf0ReadStrictArray: TypeStrictArray != marker")
 		return
 	}
 	return readStrictArray(r)
