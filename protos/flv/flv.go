@@ -17,9 +17,9 @@ import (
 // 	TypeFlags	1Byte 	bit0:audio bit2:video
 // 	DataOffset	4Byte	FLV Header Length
 const (
-	FlvHeaderSize  = 9
-	TypeFlagsVideo = 0x04
-	TypeFlagsAudio = 0x01
+	FlvHeaderSize   = 9
+	TypeFlagsVideo  = 0x04
+	TypeFlagsAudio  = 0x01
 	TypeFlagsOffset = 4
 )
 
@@ -27,16 +27,14 @@ var flvHeaderTemplate = []byte{0x46, 0x4c, 0x56, 0x01, 0x00, 0x00, 0x00, 0x00, 0
 
 // Reader flv Reader
 type Reader struct {
-	r               io.Reader
-	Header          [FlvHeaderSize]byte // flv header
-	previousTagSize uint32
+	r      io.Reader
+	Header [FlvHeaderSize]byte // flv header
 }
 
 // NewReader .
 func NewReader(r io.Reader) (*Reader, error) {
 	reader := &Reader{
-		r:               r,
-		previousTagSize: 0,
+		r: r,
 	}
 
 	// read flv header
@@ -50,32 +48,39 @@ func NewReader(r io.Reader) (*Reader, error) {
 		return nil, errors.New("Signatures must is 'FLV'")
 	}
 
+	if previousTagSize, err := reader.readTagSize(); err != nil {
+		return nil, err
+	} else if previousTagSize != 0 {
+		return nil, errors.New("First 'PreviousTagSize' must is  0")
+	}
+
 	return reader, nil
+}
+
+func (r *Reader) readTagSize() (tagSize uint32, err error) {
+	var buff [4]byte
+	if _, err := io.ReadFull(r.r, buff[:]); err != nil {
+		return 0, err
+	}
+
+	tagSize = binary.BigEndian.Uint32(buff[:])
+	return
 }
 
 // Read read flv tag
 func (r *Reader) Read() (*Tag, error) {
-	// read PreviousTagSize
-	var previousTagSize uint32
-	var buff [4]byte
-	if _, err := io.ReadFull(r.r, buff[:]); err != nil {
-		return nil, err
-	}
-
-	// 验证 PreviousTagSize
-	previousTagSize = binary.BigEndian.Uint32(buff[:])
-	if previousTagSize != r.previousTagSize {
-		return nil, fmt.Errorf("PreviousTagSize mismatches, expect '%d' but  actual '%d'",
-			r.previousTagSize, previousTagSize)
-	}
 
 	var tag Tag
 	if err := tag.Read(r.r); err != nil {
 		return nil, err
 	}
 
-	// save PreviousTagSize
-	r.previousTagSize = uint32(tag.Size())
+	if tagSize, err := r.readTagSize(); err != nil {
+		return nil, err
+	} else if tagSize != uint32(tag.Size()) {
+		return nil, fmt.Errorf("PreviousTagSize mismatches, expect '%d' but  actual '%d'",
+			tag.Size(), tagSize)
+	}
 	return &tag, nil
 }
 
@@ -91,8 +96,7 @@ func (r *Reader) HasAudio() bool {
 
 // Writer flv Writer
 type Writer struct {
-	w              io.Writer
-	previousTagLen uint32
+	w io.Writer
 }
 
 // NewWriter .
@@ -102,8 +106,7 @@ func NewWriter(w io.Writer, typeFlags byte) (*Writer, error) {
 	}
 
 	writer := &Writer{
-		w:              w,
-		previousTagLen: 0,
+		w: w,
 	}
 
 	var flvHeader [FlvHeaderSize]byte
@@ -113,21 +116,27 @@ func NewWriter(w io.Writer, typeFlags byte) (*Writer, error) {
 		return nil, err
 	}
 
+	if err := writer.writeTagSize(0); err != nil {
+		return nil, err
+	}
+
 	return writer, nil
+}
+
+func (w *Writer) writeTagSize(tagSize uint32) error {
+	var buff [4]byte
+	// write PreviousTagSize
+	binary.BigEndian.PutUint32(buff[:], tagSize)
+	if _, err := w.w.Write(buff[:]); err != nil {
+		return err
+	}
+	return nil
 }
 
 // Write write flv tag
 func (w *Writer) Write(tag *Tag) error {
-	var buff [4]byte
-	// write PreviousTagSize
-	binary.BigEndian.PutUint32(buff[:], w.previousTagLen)
-	if _, err := w.w.Write(buff[:]); err != nil {
-		return err
-	}
-
 	if err := tag.Write(w.w); err != nil {
 		return err
 	}
-	w.previousTagLen = uint32(tag.Size())
-	return nil
+	return w.writeTagSize(uint32(tag.Size()))
 }
