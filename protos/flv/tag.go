@@ -28,14 +28,13 @@ const (
 
 // Tag FLV Tag
 type Tag struct {
-	Reserved          byte   // 2 bits; 用于 FMS 的保留字段值为 0
-	Filter            byte   // 1 bits; 未加密文件中此值为 0，加密文件中此值为 1
-	TagType           byte   // 5 bits
-	DataSize          uint32 // 24 bits; Tag 中 Data 长度
-	Timestamp         uint32 // 24 bits; 单位是毫秒的时间戳，FLV 文件中第一个 Tag 的 DTS 总为 0
-	TimestampExtended byte   // 8 bits; 和 Timestamp 字段一起构成一个 32 位值, 此字段为高 8 位
-	StreamID          uint32 // 24 bits; 总为 0
-	Data              []byte // Tag 包含的数据
+	Reserved  byte   // 2 bits; 用于 FMS 的保留字段值为 0
+	Filter    byte   // 1 bits; 未加密文件中此值为 0，加密文件中此值为 1
+	TagType   byte   // 5 bits
+	DataSize  uint32 // 24 bits; Tag 中 Data 长度
+	Timestamp uint32 // 24 bits(Timestamp) + 8 bits(TimestampExtended); 单位是毫秒的时间戳，FLV 文件中第一个 Tag 的 DTS 总为 0
+	StreamID  uint32 // 24 bits; 总为 0
+	Data      []byte // Tag 包含的数据
 }
 
 // Size tag 的总大小（包括 Header + Data）
@@ -62,13 +61,10 @@ func (tag *Tag) Read(r io.Reader) error {
 	tag.DataSize = tag.DataSize >> 8
 	offset += 3
 
-	// timestamp
-	tag.Timestamp = binary.BigEndian.Uint32(tagHeader[offset:])
-	tag.Timestamp = tag.Timestamp >> 8
-	offset += 3
-
-	// timestamp extended
-	tag.TimestampExtended = tagHeader[offset]
+	// timestamp & timestamp extended
+	timestamp := binary.BigEndian.Uint32(tagHeader[offset:])
+	tag.Timestamp = (timestamp >> 8) | (timestamp << 24)
+	offset += 3 // 为 stream id 多留一个高位字节
 
 	// stream id
 	tag.StreamID = binary.BigEndian.Uint32(tagHeader[offset:]) & 0xffffff
@@ -82,7 +78,7 @@ func (tag *Tag) Read(r io.Reader) error {
 
 // Write 根据规范将 flv Tag 输出到 w。
 func (tag *Tag) Write(w io.Writer) error {
-	var tagHeader [TagHeaderSize + 1]byte
+	var tagHeader [TagHeaderSize + 1]byte  // 为 stream id 多留一个高位字节
 	offset := 0
 
 	// data size
@@ -93,7 +89,7 @@ func (tag *Tag) Write(w io.Writer) error {
 	offset += 4
 
 	// timestamp
-	binary.BigEndian.PutUint32(tagHeader[offset:], (tag.Timestamp<<8)|uint32(tag.TimestampExtended))
+	binary.BigEndian.PutUint32(tagHeader[offset:], (tag.Timestamp<<8)|(tag.Timestamp>>24))
 	offset += 4
 
 	// stream id
