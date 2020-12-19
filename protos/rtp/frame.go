@@ -17,9 +17,9 @@ type Frame struct {
 	Payload   []byte // 媒体数据载荷
 }
 
-// FrameWriter 帧写入接口
+// FrameWriter 包装 WriteFrame 方法的接口
 type FrameWriter interface {
-	Write(frame *Frame) error
+	WriteFrame(frame *Frame) error
 }
 
 // FrameExtractor 帧提取器

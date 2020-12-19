@@ -67,8 +67,8 @@ func (r *Reader) readTagSize() (tagSize uint32, err error) {
 	return
 }
 
-// Read read flv tag
-func (r *Reader) Read() (*Tag, error) {
+// ReadTag read flv tag
+func (r *Reader) ReadTag() (*Tag, error) {
 
 	var tag Tag
 	if err := tag.Read(r.r); err != nil {
@@ -133,8 +133,8 @@ func (w *Writer) writeTagSize(tagSize uint32) error {
 	return nil
 }
 
-// Write write flv tag
-func (w *Writer) Write(tag *Tag) error {
+// WriteTag write flv tag
+func (w *Writer) WriteTag(tag *Tag) error {
 	if err := tag.Write(w.w); err != nil {
 		return err
 	}

@@ -37,6 +37,11 @@ type Tag struct {
 	Data      []byte // Tag 包含的数据
 }
 
+// TagWriter 包装 WriteTag 方法的接口
+type TagWriter interface {
+	WriteTag(tag *Tag) error
+}
+
 // Size tag 的总大小（包括 Header + Data）
 func (tag Tag) Size() int {
 	return TagHeaderSize + len(tag.Data)
@@ -78,7 +83,7 @@ func (tag *Tag) Read(r io.Reader) error {
 
 // Write 根据规范将 flv Tag 输出到 w。
 func (tag *Tag) Write(w io.Writer) error {
-	var tagHeader [TagHeaderSize + 1]byte  // 为 stream id 多留一个高位字节
+	var tagHeader [TagHeaderSize + 1]byte // 为 stream id 多留一个高位字节
 	offset := 0
 
 	// data size

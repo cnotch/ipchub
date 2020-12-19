@@ -58,6 +58,11 @@ type Packet struct {
 	rtp.Header        // Video 、Audio Channel'Header
 }
 
+// PacketWriter 包装 WritePacket 方法的接口
+type PacketWriter interface {
+	WritePacket(packet *Packet) error
+}
+
 // ReadPacket 根据规范从 r 中读取 rtp 包.
 // channelConfig 提供通道类型所在通道的配置信息
 func ReadPacket(r *bufio.Reader, channelConfig []int) (*Packet, error) {

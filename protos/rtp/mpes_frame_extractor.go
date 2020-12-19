@@ -78,7 +78,7 @@ func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error
 			frameTimeStamp,
 			framesPayload[:frameSize],
 		}
-		if err = fe.w.Write(frame); err != nil {
+		if err = fe.w.WriteFrame(frame); err != nil {
 			return
 		}
 
@@ -112,7 +112,7 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 			frameTimeStamp,
 			framesPayload[:frameSize],
 		}
-		if err = fe.w.Write(frame); err != nil {
+		if err = fe.w.WriteFrame(frame); err != nil {
 			return
 		}
 

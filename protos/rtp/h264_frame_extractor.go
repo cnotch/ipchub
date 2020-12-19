@@ -50,7 +50,7 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 		//  |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		//  |                               :...OPTIONAL RTP padding        |
 		//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		err = fe.w.Write(&Frame{FrameVideo, packet.Timestamp, payload})
+		err = fe.w.WriteFrame(&Frame{FrameVideo, packet.Timestamp, payload})
 	case naluType == h264.NalStapaInRtp:
 		err = fe.extractStapa(packet)
 	case naluType == h264.NalFuAInRtp:
@@ -97,7 +97,7 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 		}
 		copy(frame.Payload, payload[off:])
 		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
-		if err = fe.w.Write(frame); err != nil {
+		if err = fe.w.WriteFrame(frame); err != nil {
 			return
 		}
 
@@ -164,7 +164,7 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 		// 清空分片缓存
 		fe.fragments = fe.fragments[:0]
 
-		err = fe.w.Write(frame)
+		err = fe.w.WriteFrame(frame)
 	}
 
 	return
