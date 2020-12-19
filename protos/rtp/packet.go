@@ -133,8 +133,8 @@ func (p *Packet) Write(w io.Writer, channelConfig []int) error {
 	return nil
 }
 
-// Len 返回包在 RTP 中的传输长度
-func (p *Packet) Len() int {
+// Size 包在 RTP 中的传输总大小
+func (p *Packet) Size() int {
 	return len(p.Data) + 4
 }
 
