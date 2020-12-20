@@ -99,6 +99,10 @@ func (tag *Tag) Read(r io.Reader) error {
 
 // Write 根据规范将 flv Tag 输出到 w。
 func (tag *Tag) Write(w io.Writer) error {
+	return writeTag(w, tag, 0)
+}
+
+func writeTag(w io.Writer, tag *Tag, timestampDelta uint32) error {
 	var tagHeader [TagHeaderSize + 1]byte // 为 stream id 多留一个高位字节
 	offset := 0
 
@@ -110,7 +114,8 @@ func (tag *Tag) Write(w io.Writer) error {
 	offset += 4
 
 	// timestamp
-	binary.BigEndian.PutUint32(tagHeader[offset:], (tag.Timestamp<<8)|(tag.Timestamp>>24))
+	timestamp := tag.Timestamp - timestampDelta
+	binary.BigEndian.PutUint32(tagHeader[offset:], (timestamp<<8)|(timestamp>>24))
 	offset += 4
 
 	// stream id

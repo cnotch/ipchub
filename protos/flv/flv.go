@@ -94,9 +94,12 @@ func (r *Reader) HasAudio() bool {
 	return r.Header[TypeFlagsOffset]&TypeFlagsAudio != 0
 }
 
+const uninitializedTimestampDelta = 0xffffffff
+
 // Writer flv Writer
 type Writer struct {
-	w io.Writer
+	w              io.Writer
+	timestampDelta uint32 // 流在中间输出时的相对时间戳
 }
 
 // NewWriter .
@@ -106,7 +109,8 @@ func NewWriter(w io.Writer, typeFlags byte) (*Writer, error) {
 	}
 
 	writer := &Writer{
-		w: w,
+		w:              w,
+		timestampDelta: uninitializedTimestampDelta,
 	}
 
 	var flvHeader [FlvHeaderSize]byte
@@ -135,8 +139,14 @@ func (w *Writer) writeTagSize(tagSize uint32) error {
 
 // WriteTag write flv tag
 func (w *Writer) WriteTag(tag *Tag) error {
-	if err := tag.Write(w.w); err != nil {
+	// 记录第一个Tag的时间戳
+	if w.timestampDelta == uninitializedTimestampDelta {
+		w.timestampDelta = tag.Timestamp
+	}
+
+	if err := writeTag(w.w, tag, w.timestampDelta); err != nil {
 		return err
 	}
+
 	return w.writeTagSize(uint32(tag.Size()))
 }
