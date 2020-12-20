@@ -5,8 +5,11 @@
 package flv
 
 import (
+	"bytes"
 	"encoding/binary"
 	"io"
+
+	"github.com/cnotch/ipchub/protos/amf"
 )
 
 // flv 标记类型ID
@@ -43,8 +46,21 @@ type TagWriter interface {
 }
 
 // Size tag 的总大小（包括 Header + Data）
-func (tag Tag) Size() int {
+func (tag *Tag) Size() int {
 	return TagHeaderSize + len(tag.Data)
+}
+
+// IsMetadata 是否是元数据 tag
+func (tag *Tag) IsMetadata() bool {
+	if tag.TagType != TagTypeAmf0Data {
+		return false
+	}
+
+	buff := bytes.NewReader(tag.Data)
+	if name, err := amf.ReadString(buff); err == nil {
+		return name == ScriptOnMetaData
+	}
+	return false
 }
 
 // Read 根据规范的格式从 r 中读取 flv Tag。
