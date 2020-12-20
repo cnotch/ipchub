@@ -13,15 +13,15 @@ func TestCID(t *testing.T) {
 
 	tests := []struct {
 		name string
-		typ  ConsumerType
+		typ  PacketType
 	}{
 		{
 			"NewRTPConsumer",
-			RTPConsumer,
+			RTPPacket,
 		},
 		{
 			"NewFLVConsumer",
-			FLVConsumer,
+			FLVPacket,
 		},
 	}
 	for _, tt := range tests {

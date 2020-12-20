@@ -8,13 +8,13 @@ import (
 	"sync/atomic"
 )
 
-// ConsumerType 消费者类型
-type ConsumerType uint32
+// PacketType 消费媒体包类型
+type PacketType uint32
 
-// 预定义消费者类型
+// 预定义消费媒体包类型
 const (
-	RTPConsumer ConsumerType = iota // 根据 RTP 协议打包的媒体
-	FLVConsumer
+	RTPPacket PacketType = iota // 根据 RTP 协议打包的媒体
+	FLVPacket
 
 	maxConsumerSequence = 0x3fff_ffff
 )
@@ -24,11 +24,11 @@ const (
 type CID uint32
 
 // String 类型的字串表示
-func (t ConsumerType) String() string {
+func (t PacketType) String() string {
 	switch t {
-	case RTPConsumer:
+	case RTPPacket:
 		return "RTP"
-	case FLVConsumer:
+	case FLVPacket:
 		return "FLV"
 	default:
 		return "Unknown"
@@ -36,18 +36,18 @@ func (t ConsumerType) String() string {
 }
 
 // NewCID 创建新的流消费ID
-func NewCID(consumerType ConsumerType, consumerSequenceSeed *uint32) CID {
+func NewCID(packetType PacketType, consumerSequenceSeed *uint32) CID {
 	localid := atomic.AddUint32(consumerSequenceSeed, 1)
 	if localid >= maxConsumerSequence {
 		localid = 1
 		atomic.StoreUint32(consumerSequenceSeed, localid)
 	}
-	return CID(consumerType<<30) | CID(localid&maxConsumerSequence)
+	return CID(packetType<<30) | CID(localid&maxConsumerSequence)
 }
 
 // Type 获取消费者类型
-func (id CID) Type() ConsumerType {
-	return ConsumerType((id >> 30) & 0x3)
+func (id CID) Type() PacketType {
+	return PacketType((id >> 30) & 0x3)
 }
 
 // Sequence 获取消费者序号
