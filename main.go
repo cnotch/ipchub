@@ -5,9 +5,12 @@
 package main
 
 import (
+	"context"
+
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/provider/auth"
 	"github.com/cnotch/ipchub/provider/route"
+	"github.com/cnotch/ipchub/service"
 	"github.com/cnotch/scheduler"
 	"github.com/cnotch/xlog"
 )
@@ -29,12 +32,12 @@ func main() {
 	userProvider := config.LoadUsersProvider(auth.JSON)
 	auth.Reset(userProvider.(auth.UserProvider))
 
-	// // Start new service
-	// svc, err := service.NewService(context.Background(), xlog.L())
-	// if err != nil {
-	// 	xlog.L().Panic(err.Error())
-	// }
+	// Start new service
+	svc, err := service.NewService(context.Background(), xlog.L())
+	if err != nil {
+		xlog.L().Panic(err.Error())
+	}
 
-	// // Listen and serve
-	// svc.Listen()
+	// Listen and serve
+	svc.Listen()
 }

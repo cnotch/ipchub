@@ -254,7 +254,7 @@ func (s *Session) onDescribe(resp *Response, req *Request) {
 	}
 
 	// 从流中取 sdp
-	sdpRaw := stream.Attr("sdp")
+	sdpRaw := stream.Sdp()
 	if len(sdpRaw) == 0 {
 		resp.StatusCode = StatusNotFound
 		return

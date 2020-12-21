@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+
 	"github.com/emitter-io/address"
 )
 
@@ -16,6 +17,21 @@ func GetIP(addr net.Addr) string {
 	s := addr.String()
 	i := strings.LastIndex(s, ":")
 	return s[:i]
+}
+
+// GetLocalIP 获取本地IP
+func GetLocalIP() []string {
+	addrs, _ := net.InterfaceAddrs()
+	ips := []string{}
+	for _, address := range addrs {
+		// 检查ip地址判断是否回环地址
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				ips = append(ips, ipnet.IP.String())
+			}
+		}
+	}
+	return ips
 }
 
 // IsLocalhostIP 判断是否为本机IP

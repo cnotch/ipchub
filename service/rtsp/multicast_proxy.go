@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/cnotch/ipchub/media"
+	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/xlog"
-	"github.com/emitter-io/address"
 )
 
 // 组播代理
@@ -104,11 +104,11 @@ func (proxy *multicastProxy) TTL() int {
 
 func (proxy *multicastProxy) SourceIP() string {
 	if len(proxy.sourceIP) == 0 {
-		addrs, err := address.GetPublic()
-		if err != nil {
+		addrs := utils.GetLocalIP()
+		if len(addrs) == 0 {
 			proxy.sourceIP = "Unknown"
 		} else {
-			proxy.sourceIP = addrs[0].IP.String()
+			proxy.sourceIP = addrs[0]
 		}
 	}
 	return proxy.sourceIP

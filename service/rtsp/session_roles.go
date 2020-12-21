@@ -251,6 +251,7 @@ func (s *Session) asTCPConsumer(stream *media.Stream, resp *Response) (err error
 func (s *Session) asUDPConsumer(stream *media.Stream, resp *Response) (err error) {
 	c := &udpConsumer{
 		Session: s,
+		source:  stream,
 	}
 
 	// 创建udp连接
