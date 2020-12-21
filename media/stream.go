@@ -144,20 +144,22 @@ func (s *Stream) Hlsable() Hlsable {
 	return s.hls
 }
 
-func (s *Stream) startConsume(consumer Consumer, useGopCache bool) CID {
+func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra string, useGopCache bool) CID {
 	c := &consumption{
-		startOn:   time.Now(),
-		stream:    s,
-		cid:       NewCID(consumer.PacketType(), &s.consumerSequenceSeed),
-		recvQueue: cache.NewPackQueue(),
-		consumer:  consumer,
-		Flow:      stats.NewFlow(),
+		startOn:    time.Now(),
+		stream:     s,
+		cid:        NewCID(packetType, &s.consumerSequenceSeed),
+		recvQueue:  cache.NewPackQueue(),
+		consumer:   consumer,
+		packetType: packetType,
+		extra:      extra,
+		Flow:       stats.NewFlow(),
 	}
 
 	c.logger = s.logger.With(xlog.Fields(
 		xlog.F("cid", uint32(c.cid)),
-		xlog.F("packettype", consumer.PacketType().String()),
-		xlog.F("nettype", consumer.NetType())))
+		xlog.F("packettype", c.packetType.String()),
+		xlog.F("extra", c.extra)))
 
 	if useGopCache {
 		c.sendGop(s.cache) // 新消费者，先发送gop缓存
@@ -170,13 +172,13 @@ func (s *Stream) startConsume(consumer Consumer, useGopCache bool) CID {
 }
 
 // StartConsume 开始消费
-func (s *Stream) StartConsume(consumer Consumer) CID {
-	return s.startConsume(consumer, true)
+func (s *Stream) StartConsume(consumer Consumer, packetType PacketType, extra string) CID {
+	return s.startConsume(consumer, packetType, extra, true)
 }
 
 // StartConsumeNoGopCache 开始消费,不使用GopCahce
-func (s *Stream) StartConsumeNoGopCache(consumer Consumer) CID {
-	return s.startConsume(consumer, false)
+func (s *Stream) StartConsumeNoGopCache(consumer Consumer, packetType PacketType, extra string) CID {
+	return s.startConsume(consumer, packetType, extra, false)
 }
 
 // StopConsume 开始消费

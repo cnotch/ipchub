@@ -5,7 +5,6 @@
 package config
 
 import (
-	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,7 +12,6 @@ import (
 	"time"
 
 	"github.com/cnotch/ipchub/provider/auth"
-	"github.com/cnotch/ipchub/utils"
 	cfg "github.com/cnotch/loader"
 	"github.com/cnotch/xlog"
 )

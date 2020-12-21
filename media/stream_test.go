@@ -27,9 +27,6 @@ func (m emptyMulticastable) TTL() int                { return 0 }
 type emptyConsumer struct {
 }
 
-func (c emptyConsumer) PacketType() PacketType  { return RTPPacket }
-func (c emptyConsumer) NetType() string         { return "" }
-func (c emptyConsumer) Addr() string            { return "" }
 func (c emptyConsumer) Consume(pack cache.Pack) {}
 func (c emptyConsumer) Close() error            { return nil }
 
@@ -37,9 +34,6 @@ type panicConsumer struct {
 	try int
 }
 
-func (c *panicConsumer) PacketType() PacketType { return RTPPacket }
-func (c *panicConsumer) NetType() string        { return "" }
-func (c *panicConsumer) Addr() string           { return "" }
 func (c *panicConsumer) Consume(pack cache.Pack) {
 	c.try++
 	if c.try > 3 {
@@ -99,7 +93,7 @@ func Test_Consumption_Consume(t *testing.T) {
 				<-time.After(time.Millisecond * 1)
 			}
 		}()
-		cid := s.StartConsume(emptyConsumer{})
+		cid := s.StartConsume(emptyConsumer{}, RTPPacket, "")
 		assert.Equal(t, 1, s.consumptions.Count(), "must is 1")
 
 		<-time.After(time.Millisecond * 1000)
@@ -124,7 +118,7 @@ func Test_Consumption_ConsumePanic(t *testing.T) {
 				<-time.After(time.Millisecond * 1)
 			}
 		}()
-		s.StartConsume(&panicConsumer{})
+		s.StartConsume(&panicConsumer{}, RTPPacket, "")
 		assert.Equal(t, 1, s.consumptions.Count(), "must is 1")
 
 		<-time.After(time.Millisecond * 100)
@@ -137,7 +131,7 @@ func Test_Consumption_ConsumePanic(t *testing.T) {
 func benchDispatch(n int, b *testing.B) {
 	s := NewStream("/live/a", sdpRaw)
 	for i := 0; i < n; i++ {
-		s.StartConsume(emptyConsumer{})
+		s.StartConsume(emptyConsumer{}, RTPPacket, "")
 	}
 
 	b.ResetTimer()
