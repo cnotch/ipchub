@@ -91,6 +91,11 @@ func (s *Stream) Path() string {
 	return s.path
 }
 
+// Sdp  sdp 字串
+func (s *Stream) Sdp() string {
+	return s.rawsdp
+}
+
 // Attr 流属性
 func (s *Stream) Attr(key string) string {
 	return s.attrs[strings.ToLower(strings.TrimSpace(key))]
