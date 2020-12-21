@@ -18,6 +18,7 @@ import (
 
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media"
+	"github.com/cnotch/ipchub/network"
 	"github.com/cnotch/ipchub/network/socket/buffered"
 	"github.com/cnotch/ipchub/network/websocket"
 	"github.com/cnotch/ipchub/provider/auth"
@@ -113,7 +114,7 @@ func newSession(svr *Server, conn net.Conn) *Session {
 
 	ipaddr, _ := address.Parse(conn.RemoteAddr().String(), 80)
 	// 如果是本机IP，不验证；以便ffmpeg本机rtsp->rtmp
-	if utils.IsLocalhostIP(ipaddr.IP) {
+	if network.IsLocalhostIP(ipaddr.IP) {
 		session.authMode = auth.NoneAuth
 	}
 
@@ -439,7 +440,7 @@ func (s *Session) onPlay(resp *Response, req *Request) (err error) {
 		return s.response(resp)
 	}
 
-	stream := media.GetOrCreate( s.path)
+	stream := media.GetOrCreate(s.path)
 	if stream == nil {
 		resp.StatusCode = StatusNotFound
 		return s.response(resp)

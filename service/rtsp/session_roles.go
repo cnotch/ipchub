@@ -12,6 +12,7 @@ import (
 
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media"
+	"github.com/cnotch/ipchub/network"
 	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/xlog"
 )
@@ -255,7 +256,7 @@ func (s *Session) asUDPConsumer(stream *media.Stream, resp *Response) (err error
 	}
 
 	// 创建udp连接
-	err = c.prepareUDP(utils.GetIP(s.conn.RemoteAddr()), s.transport.ClientPorts)
+	err = c.prepareUDP(network.GetIP(s.conn.RemoteAddr()), s.transport.ClientPorts)
 	if err != nil {
 		resp.StatusCode = StatusInternalServerError
 		err = s.response(resp)

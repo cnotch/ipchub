@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/cnotch/ipchub/media"
-	"github.com/cnotch/ipchub/utils"
+	"github.com/cnotch/ipchub/network"
 	"github.com/cnotch/xlog"
 )
 
@@ -104,7 +104,7 @@ func (proxy *multicastProxy) TTL() int {
 
 func (proxy *multicastProxy) SourceIP() string {
 	if len(proxy.sourceIP) == 0 {
-		addrs := utils.GetLocalIP()
+		addrs := network.GetLocalIP()
 		if len(addrs) == 0 {
 			proxy.sourceIP = "Unknown"
 		} else {
