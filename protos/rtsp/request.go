@@ -230,8 +230,9 @@ func (req *Request) SetDigestAuth(url *url.URL, realm, nonce, username, password
 	req.Header.set(FieldAuthorization, formatDigestAuth(realm, nonce, req.Method, url.String(), username, password))
 }
 
+// formatDigestAuth .
 func formatDigestAuth(realm, nonce, method, url string, username, password string) string {
-	response := formatDigestAuthResponse(realm, nonce, method, url, username, password)
+	response := FormatDigestAuthResponse(realm, nonce, method, url, username, password)
 
 	buf := bytes.Buffer{}
 
@@ -249,8 +250,8 @@ func formatDigestAuth(realm, nonce, method, url string, username, password strin
 	return buf.String()
 }
 
-// response= md5(md5(username:realm:password):nonce:md5(public_method:url));
-func formatDigestAuthResponse(realm, nonce, method, url string, username, password string) string {
+// FormatDigestAuthResponse response= md5(md5(username:realm:password):nonce:md5(public_method:url));
+func FormatDigestAuthResponse(realm, nonce, method, url string, username, password string) string {
 	buf := bytes.Buffer{}
 
 	// response= md5(md5(username:realm:password):nonce:md5(public_method:url));
