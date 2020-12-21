@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/kelindar/process v0.0.0-20170730150328-69a29e249ec3
 	github.com/kelindar/rate v1.0.0
+	github.com/kelindar/tcp v1.0.0
 	github.com/pion/rtp v1.6.1
 	github.com/pixelbender/go-sdp v1.1.0
 	github.com/stretchr/testify v1.6.1
