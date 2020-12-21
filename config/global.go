@@ -172,14 +172,6 @@ func MulticastTTL() int {
 	return 127
 }
 
-// ChunkSize Rtmp ChunkSize
-func ChunkSize(ip net.IP) uint32 {
-	if utils.IsLocalhostIP(ip) {
-		return 48 * 1024
-	}
-	return 16 * 1024
-}
-
 // HlsEnable 是否启动 Hls
 func HlsEnable() bool {
 	return true
