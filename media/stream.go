@@ -71,9 +71,9 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 
 	// init Cache
 	switch s.Video.Codec {
-	case "h264", "H264":
+	case "H264":
 		s.cache = cache.NewH264Cache(config.CacheGop())
-	case "h265", "H265", "hevc", "HEVC":
+	case "H265":
 		s.cache = cache.NewHevcCache(config.CacheGop())
 	default:
 		s.cache = cache.NewEmptyCache()

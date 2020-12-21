@@ -90,6 +90,7 @@ func parseVideoMeta(m *sdp.Format, video *av.VideoMeta) {
 	}
 	switch video.Codec {
 	case "h264", "H264":
+		video.Codec = "H264"
 		for _, p := range m.Params {
 			i := strings.Index(p, "sprop-parameter-sets=")
 			if i < 0 {
@@ -105,6 +106,7 @@ func parseVideoMeta(m *sdp.Format, video *av.VideoMeta) {
 			break
 		}
 	case "h265", "H265", "hevc", "HEVC":
+		video.Codec = "H265"
 		// TODO: parse H265 vps sps pps
 	}
 }
