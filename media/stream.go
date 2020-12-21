@@ -15,6 +15,7 @@ import (
 	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/protos/rtp"
 	"github.com/cnotch/ipchub/stats"
+	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/xlog"
 )
 
@@ -57,7 +58,7 @@ type Stream struct {
 func NewStream(path string, rawsdp string, options ...Option) *Stream {
 	s := &Stream{
 		startOn:              time.Now(),
-		path:                 path,
+		path:                 utils.CanonicalPath(path),
 		rawsdp:               rawsdp,
 		status:               StreamOK,
 		consumerSequenceSeed: 0,
@@ -186,20 +187,9 @@ func (s *Stream) StopConsume(cid CID) {
 	}
 }
 
-func (s *Stream) canMigrateFrom(sourceStream *Stream) bool {
-	return s.rawsdp == sourceStream.rawsdp
-}
-
-// MigrateFrom 从源流迁移消费者
-func (s *Stream) migrateFrom(sourceStream *Stream) {
-	sourceStream.consumptions.Range(func(key, value interface{}) bool {
-		c := value.(*consumption)
-		sourceStream.consumptions.Delete(key) // 仅移出，不关闭
-		c.recvQueue.Clear()                   // 清除已有的缓冲
-		c.stream = s
-		s.consumptions.Add(c) // 添加到新的流中
-		return true
-	})
+// ConsumerCount 流消费者计数
+func (s *Stream) ConsumerCount() int {
+	return s.consumptions.Count()
 }
 
 // StreamInfo 流信息
