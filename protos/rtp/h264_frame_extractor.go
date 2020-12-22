@@ -11,19 +11,30 @@ import (
 )
 
 type h264FrameExtractor struct {
-	fragments []*Packet // 分片包
-	w         FrameWriter
+	fragments   []*Packet // 分片包
+	w           FrameWriter
+	syncClock   SyncClock
+	rtpTimeUnit int
 }
 
 // NewH264FrameExtractor 实例化 H264 帧提取器
 func NewH264FrameExtractor(w FrameWriter) FrameExtractor {
 	return &h264FrameExtractor{
-		make([]*Packet, 0, 16),
-		w,
+		fragments:   make([]*Packet, 0, 16),
+		w:           w,
+		rtpTimeUnit: 90000,
 	}
 }
 
+func (fe *h264FrameExtractor) Control(p *Packet) {
+	fe.syncClock.Decode(p.Data)
+}
+
 func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
+	if fe.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
+		return
+	}
+
 	payload := packet.Payload()
 	if len(payload) < 3 {
 		return
@@ -50,7 +61,13 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 		//  |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		//  |                               :...OPTIONAL RTP padding        |
 		//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		err = fe.w.WriteFrame(&Frame{FrameVideo, packet.Timestamp, payload})
+		frame := &Frame{
+			FrameType: FrameVideo,
+			NTPTime:   fe.rtp2ntp(packet.Timestamp),
+			RTPTime:   packet.Timestamp,
+			Payload:   payload,
+		}
+		err = fe.w.WriteFrame(frame)
 	case naluType == h264.NalStapaInRtp:
 		err = fe.extractStapa(packet)
 	case naluType == h264.NalFuAInRtp:
@@ -91,9 +108,10 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 
 		off += 2
 		frame := &Frame{
-			FrameVideo,
-			packet.Timestamp,
-			make([]byte, nalSize),
+			FrameType: FrameVideo,
+			NTPTime:   fe.rtp2ntp(packet.Timestamp),
+			RTPTime:   packet.Timestamp,
+			Payload:   make([]byte, nalSize),
 		}
 		copy(frame.Payload, payload[off:])
 		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
@@ -151,14 +169,15 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 
 		frame := &Frame{
 			FrameType: FrameVideo,
-			Timestamp: fe.fragments[0].Timestamp,
+			NTPTime:   fe.rtp2ntp(packet.Timestamp),
+			RTPTime:   packet.Timestamp,
 			Payload:   make([]byte, frameLen)}
 
-		frame.Payload[0] = 0 | (header & 0x60) | (fuHeader & 0x1F)
+		frame.Payload[0] = (header & 0x60) | (fuHeader & 0x1F)
 		offset := 1
 		for _, fragment := range fe.fragments {
 			payload := fragment.Payload()[2:]
-			copy(frame.Payload[1:], payload)
+			copy(frame.Payload[offset:], payload)
 			offset += len(payload)
 		}
 		// 清空分片缓存
@@ -168,4 +187,8 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 	}
 
 	return
+}
+
+func (fe *h264FrameExtractor) rtp2ntp(timestamp uint32) int64 {
+	return fe.syncClock.Rtp2Ntp(timestamp, fe.rtpTimeUnit)
 }

@@ -5,8 +5,6 @@
 package rtp
 
 import (
-	"fmt"
-
 	"github.com/cnotch/ipchub/av/aac"
 )
 
@@ -14,25 +12,24 @@ type mpesFrameExtractor struct {
 	w           FrameWriter
 	sizeLength  int
 	indexLength int
-	extractFunc func(packet *Packet) error
+	// extractFunc func(packet *Packet) error
+	syncClock   SyncClock
+	rtpTimeUnit int
 }
 
 // NewMPESFrameExtractor 实例化 MPES 帧提取器
-func NewMPESFrameExtractor(w FrameWriter, sizeLength, indexLength int) FrameExtractor {
+func NewMPESFrameExtractor(w FrameWriter, rtpTimeUnit int) FrameExtractor {
 	fe := &mpesFrameExtractor{
 		w:           w,
-		sizeLength:  sizeLength,
-		indexLength: indexLength,
-	}
-	switch sizeLength + indexLength {
-	case 8:
-		fe.extractFunc = fe.extractFor1ByteAUHeader
-	case 16:
-		fe.extractFunc = fe.extractFor2ByteAUHeader
-	default:
-		panic(fmt.Sprintf("not supported au_header size(%d,%d)", sizeLength, indexLength))
+		sizeLength:  13,
+		indexLength: 3,
+		rtpTimeUnit: rtpTimeUnit,
 	}
 	return fe
+}
+
+func (fe *mpesFrameExtractor) Control(p *Packet) {
+	fe.syncClock.Decode(p.Data)
 }
 
 //  以下是当 sizelength=13;indexlength=3;indexdeltalength=3 时
@@ -54,7 +51,10 @@ func NewMPESFrameExtractor(w FrameWriter, sizeLength, indexLength int) FrameExtr
 // 当 sizelength=6;indexlength=2;indexdeltalength=2 时
 // 单帧封装时，rtp payload的长度 = AU-header-lengths(两个字节) + AU-header(6+2) + AU的长度
 func (fe *mpesFrameExtractor) Extract(packet *Packet) (err error) {
-	return fe.extractFunc(packet)
+	if fe.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
+		return
+	}
+	return fe.extractFor2ByteAUHeader(packet)
 }
 
 func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error) {
@@ -74,9 +74,10 @@ func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error
 		auHeader := uint16(0) | (uint16(auHeaders[0]) << 8) | uint16(auHeaders[1])
 		frameSize := auHeader >> fe.indexLength
 		frame := &Frame{
-			FrameAudio,
-			frameTimeStamp,
-			framesPayload[:frameSize],
+			FrameType: FrameAudio,
+			NTPTime:   fe.rtp2ntp(frameTimeStamp),
+			RTPTime:   frameTimeStamp,
+			Payload:   framesPayload[:frameSize],
 		}
 		if err = fe.w.WriteFrame(frame); err != nil {
 			return
@@ -108,9 +109,10 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 		auHeader := auHeaders[0]
 		frameSize := auHeader >> fe.indexLength
 		frame := &Frame{
-			FrameAudio,
-			frameTimeStamp,
-			framesPayload[:frameSize],
+			FrameType: FrameAudio,
+			NTPTime:   fe.rtp2ntp(frameTimeStamp),
+			RTPTime:   frameTimeStamp,
+			Payload:   framesPayload[:frameSize],
 		}
 		if err = fe.w.WriteFrame(frame); err != nil {
 			return
@@ -123,4 +125,8 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 	}
 
 	return
+}
+
+func (fe *mpesFrameExtractor) rtp2ntp(timestamp uint32) int64 {
+	return fe.syncClock.Rtp2Ntp(timestamp, fe.rtpTimeUnit)
 }

@@ -13,7 +13,8 @@ const (
 // Frame 音视频帧
 type Frame struct {
 	FrameType byte   // 帧类型
-	Timestamp uint32 // rtp 包中的时间戳
+	NTPTime   int64  // 绝对时间戳，单位 ms
+	RTPTime   uint32 // rtp time
 	Payload   []byte // 媒体数据载荷
 }
 
@@ -24,6 +25,7 @@ type FrameWriter interface {
 
 // FrameExtractor 帧提取器
 type FrameExtractor interface {
+	Control(p *Packet)
 	Extract(p *Packet) error
 }
 
