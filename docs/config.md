@@ -103,6 +103,3 @@ pull | 拉取权限 | * |
 当权限设置为 /a/+/c/*
 + 路径 a/b/c, a/d/c, a/b/c/d, a/b/c/d/e 都通过授权
 + 路径 a/c 不通过授权
-
-## 5 ffmpeg
-将ffmpeg设置到环境变量路径中，供rtsp到rtmp的转换

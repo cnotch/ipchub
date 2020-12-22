@@ -187,7 +187,6 @@ func (s *Service) onGetRuntime(w http.ResponseWriter, r *http.Request, pathParam
 		Proc    stats.Proc        `json:"proc"`
 		Streams sccc              `json:"streams"`
 		Rtsp    stats.ConnsSample `json:"rtsp"`
-		Rtmp    stats.ConnsSample `json:"rtmp"`
 		Wsp     stats.ConnsSample `json:"wsp"`
 		Flv     stats.ConnsSample `json:"flv"`
 		Extra   *stats.Runtime    `json:"extra,omitempty"`

@@ -18,7 +18,6 @@ import (
 
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media"
-	"github.com/cnotch/ipchub/network"
 	"github.com/cnotch/ipchub/network/socket/buffered"
 	"github.com/cnotch/ipchub/network/websocket"
 	"github.com/cnotch/ipchub/provider/auth"
@@ -26,7 +25,6 @@ import (
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/xlog"
-	"github.com/emitter-io/address"
 	"github.com/pixelbender/go-sdp/sdp"
 )
 
@@ -112,11 +110,11 @@ func newSession(svr *Server, conn net.Conn) *Session {
 		session.user = auth.Get(wsc.Username())
 	}
 
-	ipaddr, _ := address.Parse(conn.RemoteAddr().String(), 80)
-	// 如果是本机IP，不验证；以便ffmpeg本机rtsp->rtmp
-	if network.IsLocalhostIP(ipaddr.IP) {
-		session.authMode = auth.NoneAuth
-	}
+	// ipaddr, _ := address.Parse(conn.RemoteAddr().String(), 80)
+	// // 如果是本机IP，不验证；以便ffmpeg本机rtsp->rtmp
+	// if network.IsLocalhostIP(ipaddr.IP) {
+	// 	session.authMode = auth.NoneAuth
+	// }
 
 	for i := rtpChannelMin; i < rtpChannelCount; i++ {
 		session.transport.Channels[i] = -1

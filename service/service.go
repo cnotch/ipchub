@@ -101,7 +101,7 @@ func (s *Service) Listen() (err error) {
 	defer s.Close()
 	s.hookSignals()
 
-	// http rtsp rtmp ws
+	// http rtsp ws
 	addr, err := address.Parse(config.Addr(), 554)
 	if err != nil {
 		s.logger.Panic(err.Error())

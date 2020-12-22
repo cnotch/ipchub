@@ -101,7 +101,7 @@ curl http://localhost:1554/api/v1/runtime
 		"total": 0,
 		"active": 0
 	},
-	"rtmp": {
+	"flv": {
 		"total": 0,
 		"active": 0
 	}
