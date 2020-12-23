@@ -95,7 +95,6 @@ func (muxer *flvMuxer) WriteFrame(frame *rtp.Frame) error {
 	} else {
 		return muxer.muxAudioTag(frame)
 	}
-	return nil
 }
 
 func (muxer *flvMuxer) muxVideoTag(frame *rtp.Frame) error {
@@ -168,29 +167,51 @@ func (muxer *flvMuxer) muxMetadataTag() error {
 
 	if muxer.hasAudio {
 		properties = append(properties,
-			amf.ObjectProperty{flv.MetaDataAudioCodecID, flv.SoundFormatAAC})
+			amf.ObjectProperty{
+				Name:  flv.MetaDataAudioCodecID,
+				Value: flv.SoundFormatAAC})
 		properties = append(properties,
-			amf.ObjectProperty{flv.MetaDataAudioDateRate, muxer.audioMeta.DataRate})
+			amf.ObjectProperty{
+				Name:  flv.MetaDataAudioDateRate,
+				Value: muxer.audioMeta.DataRate})
 		properties = append(properties,
-			amf.ObjectProperty{flv.MetaDataAudioSampleRate, muxer.audioMeta.SampleRate})
+			amf.ObjectProperty{
+				Name:  flv.MetaDataAudioSampleRate,
+				Value: muxer.audioMeta.SampleRate})
 		properties = append(properties,
-			amf.ObjectProperty{flv.MetaDataAudioSampleSize, muxer.audioMeta.SampleSize})
+			amf.ObjectProperty{
+				Name:  flv.MetaDataAudioSampleSize,
+				Value: muxer.audioMeta.SampleSize})
 		properties = append(properties,
-			amf.ObjectProperty{flv.MetaDataStereo, muxer.audioMeta.Channels > 1})
+			amf.ObjectProperty{
+				Name:  flv.MetaDataStereo,
+				Value: muxer.audioMeta.Channels > 1})
 	}
 
 	properties = append(properties,
-		amf.ObjectProperty{flv.MetaDataFrameRate, muxer.videoMeta.FrameRate})
+		amf.ObjectProperty{
+			Name:  flv.MetaDataFrameRate,
+			Value: muxer.videoMeta.FrameRate})
 	properties = append(properties,
-		amf.ObjectProperty{flv.MetaDataHeight, muxer.videoMeta.Height})
+		amf.ObjectProperty{
+			Name:  flv.MetaDataHeight,
+			Value: muxer.videoMeta.Height})
 	properties = append(properties,
-		amf.ObjectProperty{flv.MetaDataVideoCodecID, flv.CodecIDAVC})
+		amf.ObjectProperty{
+			Name:  flv.MetaDataVideoCodecID,
+			Value: flv.CodecIDAVC})
 	properties = append(properties,
-		amf.ObjectProperty{flv.MetaDataHeight, muxer.videoMeta.Height})
+		amf.ObjectProperty{
+			Name:  flv.MetaDataHeight,
+			Value: muxer.videoMeta.Height})
 	properties = append(properties,
-		amf.ObjectProperty{flv.MetaDataVideoDataRate, muxer.videoMeta.DataRate})
+		amf.ObjectProperty{
+			Name:  flv.MetaDataVideoDataRate,
+			Value: muxer.videoMeta.DataRate})
 	properties = append(properties,
-		amf.ObjectProperty{flv.MetaDataWidth, muxer.videoMeta.Width})
+		amf.ObjectProperty{
+			Name:  flv.MetaDataWidth,
+			Value: muxer.videoMeta.Width})
 
 	scriptData := flv.ScriptData{
 		Name:  flv.ScriptOnMetaData,
