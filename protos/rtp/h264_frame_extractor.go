@@ -26,8 +26,9 @@ func NewH264FrameExtractor(w FrameWriter) FrameExtractor {
 	}
 }
 
-func (fe *h264FrameExtractor) Control(p *Packet) {
+func (fe *h264FrameExtractor) Control(p *Packet) error {
 	fe.syncClock.Decode(p.Data)
+	return nil
 }
 
 func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {

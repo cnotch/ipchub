@@ -28,8 +28,9 @@ func NewMPESFrameExtractor(w FrameWriter, rtpTimeUnit int) FrameExtractor {
 	return fe
 }
 
-func (fe *mpesFrameExtractor) Control(p *Packet) {
+func (fe *mpesFrameExtractor) Control(p *Packet) error {
 	fe.syncClock.Decode(p.Data)
+	return nil
 }
 
 //  以下是当 sizelength=13;indexlength=3;indexdeltalength=3 时

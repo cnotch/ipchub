@@ -25,7 +25,7 @@ type FrameWriter interface {
 
 // FrameExtractor 帧提取器
 type FrameExtractor interface {
-	Control(p *Packet)
+	Control(p *Packet) error
 	Extract(p *Packet) error
 }
 
