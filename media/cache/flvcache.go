@@ -63,47 +63,44 @@ func (cache *FlvCache) CachePack(pack Pack) {
 // Reset 重置FlvCache缓存
 func (cache *FlvCache) Reset() {
 	cache.l.Lock()
+	defer cache.l.Unlock()
 	cache.gop.Reset()
 	cache.metaData = nil
 	cache.videoSequenceHeader = nil
 	cache.audioSequenceHeader = nil
-	cache.l.Unlock()
 }
 
 // EnqueueTo 入列到指定的队列
 func (cache *FlvCache) EnqueueTo(q *PackQueue) int {
-	bytes := 0
 	cache.l.RLock()
+	defer cache.l.RUnlock()
+
+	bytes := 0
 
 	gop := cache.gop.Packs()
+	initTimestamp := uint32(0)
 	if len(gop) > 0 {
 		tag := gop[0].(*flv.Tag)
-		// 更新 Timestamp
-		if cache.metaData != nil {
-			cache.metaData.Timestamp = tag.Timestamp
-		}
-		if cache.videoSequenceHeader != nil {
-			cache.videoSequenceHeader.Timestamp = tag.Timestamp
-		}
-		if cache.audioSequenceHeader != nil {
-			cache.audioSequenceHeader.Timestamp = tag.Timestamp
-		}
+		initTimestamp = tag.Timestamp
 	}
 
 	//write meta data
 	if nil != cache.metaData {
+		cache.metaData.Timestamp = initTimestamp
 		q.Buffer().WritePack(cache.metaData)
 		bytes += cache.metaData.Size()
 	}
 
 	//write video data
 	if nil != cache.videoSequenceHeader {
+		cache.videoSequenceHeader.Timestamp = initTimestamp
 		q.Buffer().WritePack(cache.videoSequenceHeader)
 		bytes += cache.videoSequenceHeader.Size()
 	}
 
 	//write audio data
 	if nil != cache.audioSequenceHeader {
+		cache.audioSequenceHeader.Timestamp = initTimestamp
 		q.Buffer().WritePack(cache.audioSequenceHeader)
 		bytes += cache.audioSequenceHeader.Size()
 	}
@@ -114,6 +111,5 @@ func (cache *FlvCache) EnqueueTo(q *PackQueue) int {
 		bytes += p.Size()
 	}
 
-	cache.l.RUnlock()
 	return bytes
 }
