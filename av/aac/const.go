@@ -4,6 +4,8 @@
 
 package aac
 
+import "sort"
+
 const (
 	// SamplesPerFrame 每帧采样数
 	SamplesPerFrame = 1024
@@ -37,6 +39,15 @@ const (
 // SampleRate 获取采用频率具体值
 func SampleRate(index int) int {
 	return SampleRates[index]
+}
+
+// SampleRateIndex .
+func SampleRateIndex(rate int) int {
+	i := sort.Search(len(SampleRates), func(i int) bool { return SampleRates[i] <= rate })
+	if i < len(SampleRates) && SampleRates[i] == rate {
+		return i
+	}
+	return -1
 }
 
 // SampleRates 采用频率集合

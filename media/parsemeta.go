@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/cnotch/ipchub/av"
+	"github.com/cnotch/ipchub/av/aac"
 	"github.com/cnotch/ipchub/av/h264"
 	"github.com/cnotch/ipchub/utils/scan"
 	"github.com/pixelbender/go-sdp/sdp"
@@ -53,15 +54,22 @@ func parseMeta(rawsdp string, video *av.VideoMeta, audio *av.AudioMeta) {
 }
 
 func parseAudioMeta(m *sdp.Format, audio *av.AudioMeta) {
-	audio.SampleRate = m.ClockRate
-	audio.Stereo = m.Channels == 2
-	audio.SampleSize = m.Channels * 8
+	audio.SampleRate = 44100
+	audio.Channels = 2
+	audio.SampleSize = 16
+	if m.ClockRate > 0 {
+		audio.SampleRate = m.ClockRate
+	}
+	if m.Channels > 0 {
+		audio.Channels = m.Channels
+	}
 
 	// parse AAC config
 	if len(m.Params) == 0 {
 		return
 	}
 	if audio.Codec == "AAC" {
+		audio.Sps = []byte{0x11, 0x90, 0x56, 0xe5, 0x00}
 		for _, p := range m.Params {
 			i := strings.Index(p, "config=")
 			if i < 0 {
@@ -73,12 +81,17 @@ func parseAudioMeta(m *sdp.Format, audio *av.AudioMeta) {
 			if endi > -1 {
 				p = p[:endi]
 			}
-			sps, err := hex.DecodeString(p)
-			if err != nil {
-				return
+
+			if sps, err := hex.DecodeString(p); err == nil {
+				copy(audio.Sps, sps)
+			} else {
+				var rawSps aac.RawSPS
+				rawSps.Profile = 2
+				rawSps.SampleRate = byte(aac.SampleRateIndex(audio.SampleRate))
+				rawSps.ChannelConfig = byte(audio.Channels)
+				config := rawSps.Encode2Bytes()
+				copy(audio.Sps, config[:])
 			}
-			audio.Sps = []byte{0x11, 0x90, 0x56, 0xe5, 0x00}
-			copy(audio.Sps, sps)
 			break
 		}
 	}

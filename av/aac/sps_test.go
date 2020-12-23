@@ -26,3 +26,26 @@ func TestRawSPS_DecodeString(t *testing.T) {
 		})
 	}
 }
+
+func TestRawSPS_Encode2Bytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      string
+		configBytes [2]byte
+	}{
+		{"case1", "121056E500", [2]byte{0x12, 0x10}},
+		{"case2", "1190", [2]byte{0x11, 0x90}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sps RawSPS
+			sps.DecodeString(tt.config)
+			config :=sps.Encode2Bytes()
+			if config != tt.configBytes {
+				t.Errorf("RawSPS.Encode2Bytes() return = %v, want = %v", config, tt.configBytes)
+			}
+			profile := sps.Profile
+			_ = profile
+		})
+	}
+}

@@ -58,3 +58,12 @@ func (sps *RawSPS) Decode(config []byte) error {
 
 	return nil
 }
+
+// Encode2Bytes .
+func (sps *RawSPS) Encode2Bytes() (buff [2]byte) {
+	buff[0] = sps.Profile<<3 | (sps.SampleRate>>1)&0x07
+	buff[1] = sps.SampleRate<<7 | (sps.ChannelConfig&0x0f)<<3 |
+		(sps.FrameLengthFlag&0x01)<<2 | (sps.DependsOnCoreCoder&0x01)<<1 |
+		sps.ExtensionFlag&0x01
+	return
+}

@@ -22,6 +22,6 @@ type AudioMeta struct {
 	DataRate   float64 `json:"datarate,omitempty"`
 	SampleRate int     `json:"samplerate,omitempty"`
 	SampleSize int     `json:"samplesize,omitempty"`
-	Stereo     bool    `json:"stereo,omitempty"`
+	Channels   int     `json:"channels,omitempty"`
 	Sps        []byte  `json:"-"` // sps
 }
