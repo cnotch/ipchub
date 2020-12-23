@@ -7,6 +7,7 @@ package flv
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 )
 
 // E.4.3.1 VIDEODATA
@@ -103,8 +104,8 @@ type VideoData struct {
 // Unmarshal .
 // Note: Unmarshal not copy the data
 func (videoData *VideoData) Unmarshal(data []byte) error {
-	if len(data) < 5 {
-		return errors.New("data.length < 5")
+	if len(data) < 9 {
+		return errors.New("data.length < 9")
 	}
 
 	offset := 0
@@ -118,6 +119,14 @@ func (videoData *VideoData) Unmarshal(data []byte) error {
 		videoData.AVCPacketType = byte(temp >> 24)
 		videoData.CompositionTime = temp & 0x00ffffff
 		offset += 4
+
+		if videoData.AVCPacketType == AVCPacketTypeNALU {
+			size := int(binary.BigEndian.Uint32(data[offset:]))
+			offset += 4
+			if size > len(data)-offset {
+				return fmt.Errorf("data.length < %d", size+offset)
+			}
+		}
 	}
 
 	videoData.Body = data[offset:]
@@ -126,6 +135,9 @@ func (videoData *VideoData) Unmarshal(data []byte) error {
 
 // MarshalSize .
 func (videoData *VideoData) MarshalSize() int {
+	if videoData.AVCPacketType == AVCPacketTypeNALU {
+		return 9 + len(videoData.Body)
+	}
 	return 5 + len(videoData.Body)
 }
 
@@ -140,6 +152,11 @@ func (videoData *VideoData) Marshal() ([]byte, error) {
 		binary.BigEndian.PutUint32(buff[offset:],
 			(uint32(videoData.AVCPacketType)<<24)|(videoData.CompositionTime&0x00ffffff))
 		offset += 4
+
+		if videoData.AVCPacketType == AVCPacketTypeNALU {
+			binary.BigEndian.PutUint32(buff[offset:], uint32(len(videoData.Body)))
+			offset += 4
+		}
 	}
 
 	offset += copy(buff[offset:], videoData.Body)
