@@ -365,3 +365,11 @@ func (muxer *flvMuxer) WritePacket(packet *rtp.Packet) error {
 	muxer.recvQueue.Enqueue(packet)
 	return nil
 }
+
+func (muxer *flvMuxer) TypeFlags() byte {
+	typeFlags := byte(flv.TypeFlagsVideo)
+	if muxer.hasAudio {
+		typeFlags |= byte(flv.TypeFlagsAudio)
+	}
+	return typeFlags
+}
