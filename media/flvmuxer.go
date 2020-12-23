@@ -5,6 +5,7 @@
 package media
 
 import (
+	"io"
 	"runtime/debug"
 	"time"
 
@@ -20,11 +21,10 @@ import (
 type flvMuxer struct {
 	videoMeta         av.VideoMeta
 	audioMeta         av.AudioMeta
-	hasAudio          bool
+	typeFlags         byte
 	audioDataTemplate *flv.AudioData
 	recvQueue         *cache.PackQueue
-	h264Extractor     rtp.FrameExtractor
-	mpesExtractor     rtp.FrameExtractor
+	extractFuncs      [4]func(packet *rtp.Packet) error
 	tagWriter         flv.TagWriter
 	closed            bool
 	spsMuxed          bool
@@ -33,21 +33,29 @@ type flvMuxer struct {
 	logger            *xlog.Logger // 日志对象
 }
 
-func newRtp2Flv(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter flv.TagWriter, logger *xlog.Logger) *flvMuxer {
+func newFlvMuxer(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter flv.TagWriter, logger *xlog.Logger) FlvMuxer {
 	muxer := &flvMuxer{
 		recvQueue: cache.NewPackQueue(),
 		videoMeta: videoMeta,
 		audioMeta: audioMeta,
-		hasAudio:  audioMeta.Codec == "AAC",
+		typeFlags: byte(flv.TypeFlagsVideo),
 		tagWriter: tagWriter,
 		closed:    false,
 		logger:    logger,
 	}
 
-	muxer.h264Extractor = rtp.NewH264FrameExtractor(muxer)
-	if muxer.hasAudio {
-		muxer.mpesExtractor = rtp.NewMPESFrameExtractor(muxer, audioMeta.SampleRate)
+	h264Extractor := rtp.NewH264FrameExtractor(muxer)
+	muxer.extractFuncs[rtp.ChannelVideo] = h264Extractor.Extract
+	muxer.extractFuncs[rtp.ChannelVideoControl] = h264Extractor.Control
+	if audioMeta.Codec == "AAC" {
+		muxer.typeFlags |= flv.TypeFlagsAudio
+		mpesExtractor := rtp.NewMPESFrameExtractor(muxer, audioMeta.SampleRate)
+		muxer.extractFuncs[rtp.ChannelAudio] = mpesExtractor.Extract
+		muxer.extractFuncs[rtp.ChannelAudioControl] = mpesExtractor.Control
 		muxer.prepareTemplate()
+	} else {
+		muxer.extractFuncs[rtp.ChannelAudio] = func(*rtp.Packet) error { return nil }
+		muxer.extractFuncs[rtp.ChannelAudioControl] = func(*rtp.Packet) error { return nil }
 	}
 
 	go muxer.consume()
@@ -165,7 +173,7 @@ func (muxer *flvMuxer) muxAudioTag(frame *rtp.Frame) error {
 func (muxer *flvMuxer) muxMetadataTag() error {
 	properties := make(amf.EcmaArray, 0, 12)
 
-	if muxer.hasAudio {
+	if muxer.typeFlags&flv.TypeFlagsAudio > 0 {
 		properties = append(properties,
 			amf.ObjectProperty{
 				Name:  flv.MetaDataAudioCodecID,
@@ -277,7 +285,7 @@ func (muxer *flvMuxer) muxSequenceHeaderTag() error {
 }
 
 func (muxer *flvMuxer) muxAudioSequenceHeaderTag() error {
-	if !muxer.hasAudio {
+	if muxer.typeFlags&flv.TypeFlagsAudio > 0 {
 		return nil
 	}
 
@@ -323,30 +331,9 @@ func (muxer *flvMuxer) consume() {
 		}
 
 		packet := pack.(*rtp.Packet)
-		if muxer.hasAudio {
-			switch packet.Channel {
-			case rtp.ChannelAudio:
-				if err := muxer.mpesExtractor.Extract(packet); err != nil {
-					muxer.logger.Errorf("extract aac error :%s", err.Error())
-				}
-			case rtp.ChannelVideo:
-				if err := muxer.h264Extractor.Extract(packet); err != nil {
-					muxer.logger.Errorf("extract h264 error :%s", err.Error())
-				}
-			case rtp.ChannelVideoControl:
-				muxer.h264Extractor.Control(packet)
-			case rtp.ChannelAudioControl:
-				muxer.mpesExtractor.Control(packet)
-			}
-		} else {
-			switch packet.Channel {
-			case rtp.ChannelVideo:
-				if err := muxer.h264Extractor.Extract(packet); err != nil {
-					muxer.logger.Errorf("extract h264 error :%s", err.Error())
-				}
-			case rtp.ChannelVideoControl:
-				muxer.h264Extractor.Control(packet)
-			}
+		if err := muxer.extractFuncs[int(packet.Channel)](packet); err != nil {
+			muxer.logger.Errorf("flvmuxer: extract rtp frame error :%s", err.Error())
+			// break
 		}
 	}
 }
@@ -367,9 +354,17 @@ func (muxer *flvMuxer) WritePacket(packet *rtp.Packet) error {
 }
 
 func (muxer *flvMuxer) TypeFlags() byte {
-	typeFlags := byte(flv.TypeFlagsVideo)
-	if muxer.hasAudio {
-		typeFlags |= byte(flv.TypeFlagsAudio)
-	}
-	return typeFlags
+	return muxer.typeFlags
 }
+
+type FlvMuxer interface {
+	TypeFlags() byte
+	rtp.PacketWriter
+	io.Closer
+}
+
+type emptyFlvMuxer struct{}
+
+func (emptyFlvMuxer) TypeFlags() byte                      { return 0 }
+func (emptyFlvMuxer) WritePacket(packet *rtp.Packet) error { return nil }
+func (emptyFlvMuxer) Close() error                         { return nil }
