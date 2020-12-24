@@ -18,6 +18,10 @@ import (
 	"github.com/cnotch/xlog"
 )
 
+// 网络播放时 PTS（Presentation Time Stamp）的延时
+// 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
+const ptsDelay = 1000
+
 type flvMuxer struct {
 	videoMeta         av.VideoMeta
 	audioMeta         av.AudioMeta
@@ -41,6 +45,7 @@ func newFlvMuxer(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter flv.T
 		typeFlags: byte(flv.TypeFlagsVideo),
 		tagWriter: tagWriter,
 		closed:    false,
+		baseTs:    time.Now().UnixNano() / int64(time.Millisecond),
 		logger:    logger,
 	}
 
@@ -98,6 +103,10 @@ func (muxer *flvMuxer) prepareTemplate() {
 }
 
 func (muxer *flvMuxer) WriteFrame(frame *rtp.Frame) error {
+	if muxer.baseNtp == 0 {
+		muxer.baseNtp = frame.NTPTime
+	}
+
 	if frame.FrameType == rtp.FrameVideo {
 		return muxer.muxVideoTag(frame)
 	} else {
@@ -120,17 +129,17 @@ func (muxer *flvMuxer) muxVideoTag(frame *rtp.Frame) error {
 		return muxer.muxSequenceHeaderTag()
 	}
 
-	if muxer.baseNtp == 0 {
-		muxer.baseNtp = frame.NTPTime
-		muxer.baseTs = time.Now().UnixNano() / int64(time.Millisecond)
+	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseTs
+	pts := frame.NTPTime - muxer.baseNtp + ptsDelay
+	if dts > pts {
+		pts = dts
 	}
 
-	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseTs
 	videoData := &flv.VideoData{
 		FrameType:       flv.FrameTypeInterFrame,
 		CodecID:         flv.CodecIDAVC,
 		AVCPacketType:   flv.AVCPacketTypeNALU,
-		CompositionTime: uint32(frame.NTPTime - muxer.baseNtp),
+		CompositionTime: uint32(pts - dts),
 		Body:            frame.Payload,
 	}
 
@@ -151,11 +160,6 @@ func (muxer *flvMuxer) muxVideoTag(frame *rtp.Frame) error {
 }
 
 func (muxer *flvMuxer) muxAudioTag(frame *rtp.Frame) error {
-	if muxer.baseNtp == 0 {
-		muxer.baseNtp = frame.NTPTime
-		muxer.baseTs = time.Now().UnixNano() / int64(time.Millisecond)
-	}
-
 	audioData := *muxer.audioDataTemplate
 	audioData.Body = frame.Payload
 	data, _ := audioData.Marshal()
@@ -163,7 +167,7 @@ func (muxer *flvMuxer) muxAudioTag(frame *rtp.Frame) error {
 	tag := &flv.Tag{
 		TagType:   flv.TagTypeAudio,
 		DataSize:  uint32(len(data)),
-		Timestamp: uint32(frame.NTPTime - muxer.baseNtp),
+		Timestamp: uint32(frame.NTPTime-muxer.baseNtp) + ptsDelay,
 		StreamID:  0,
 		Data:      data,
 	}
@@ -172,6 +176,15 @@ func (muxer *flvMuxer) muxAudioTag(frame *rtp.Frame) error {
 
 func (muxer *flvMuxer) muxMetadataTag() error {
 	properties := make(amf.EcmaArray, 0, 12)
+
+	properties = append(properties,
+		amf.ObjectProperty{
+			Name:  "creator",
+			Value: "ipchub stream media server"})
+	properties = append(properties,
+		amf.ObjectProperty{
+			Name:  flv.MetaDataCreationDate,
+			Value: time.Now().Format(time.RFC3339)})
 
 	if muxer.typeFlags&flv.TypeFlagsAudio > 0 {
 		properties = append(properties,
@@ -198,28 +211,24 @@ func (muxer *flvMuxer) muxMetadataTag() error {
 
 	properties = append(properties,
 		amf.ObjectProperty{
-			Name:  flv.MetaDataFrameRate,
-			Value: muxer.videoMeta.FrameRate})
-	properties = append(properties,
-		amf.ObjectProperty{
-			Name:  flv.MetaDataHeight,
-			Value: muxer.videoMeta.Height})
-	properties = append(properties,
-		amf.ObjectProperty{
 			Name:  flv.MetaDataVideoCodecID,
 			Value: flv.CodecIDAVC})
-	properties = append(properties,
-		amf.ObjectProperty{
-			Name:  flv.MetaDataHeight,
-			Value: muxer.videoMeta.Height})
 	properties = append(properties,
 		amf.ObjectProperty{
 			Name:  flv.MetaDataVideoDataRate,
 			Value: muxer.videoMeta.DataRate})
 	properties = append(properties,
 		amf.ObjectProperty{
+			Name:  flv.MetaDataFrameRate,
+			Value: muxer.videoMeta.FrameRate})
+	properties = append(properties,
+		amf.ObjectProperty{
 			Name:  flv.MetaDataWidth,
 			Value: muxer.videoMeta.Width})
+	properties = append(properties,
+		amf.ObjectProperty{
+			Name:  flv.MetaDataHeight,
+			Value: muxer.videoMeta.Height})
 
 	scriptData := flv.ScriptData{
 		Name:  flv.ScriptOnMetaData,
@@ -250,20 +259,13 @@ func (muxer *flvMuxer) muxSequenceHeaderTag() error {
 
 	muxer.spsMuxed = true
 
-	record := &flv.AVCDecoderConfigurationRecord{
-		ConfigurationVersion: 1,
-		AVCProfileIndication: muxer.videoMeta.Sps[1],
-		ProfileCompatibility: muxer.videoMeta.Sps[2],
-		AVCLevelIndication:   muxer.videoMeta.Sps[3],
-		SPS:                  muxer.videoMeta.Sps,
-		PPS:                  muxer.videoMeta.Pps,
-	}
+	record := flv.NewAVCDecoderConfigurationRecord(muxer.videoMeta.Sps, muxer.videoMeta.Pps)
 	body, _ := record.Marshal()
 
 	videoData := &flv.VideoData{
 		FrameType:       flv.FrameTypeKeyFrame,
 		CodecID:         flv.CodecIDAVC,
-		AVCPacketType:   flv.AACPacketTypeSequenceHeader,
+		AVCPacketType:   flv.AVCPacketTypeSequenceHeader,
 		CompositionTime: 0,
 		Body:            body,
 	}
@@ -285,7 +287,7 @@ func (muxer *flvMuxer) muxSequenceHeaderTag() error {
 }
 
 func (muxer *flvMuxer) muxAudioSequenceHeaderTag() error {
-	if muxer.typeFlags&flv.TypeFlagsAudio > 0 {
+	if muxer.typeFlags&flv.TypeFlagsAudio == 0 {
 		return nil
 	}
 

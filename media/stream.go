@@ -13,6 +13,7 @@ import (
 	"github.com/cnotch/ipchub/av"
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media/cache"
+	"github.com/cnotch/ipchub/protos/flv"
 	"github.com/cnotch/ipchub/protos/rtp"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/ipchub/utils"
@@ -44,8 +45,11 @@ type Stream struct {
 	size                 uint64 // 流已经接收到的输入（字节）
 	status               int32  // 流状态
 	consumerSequenceSeed uint32
-	consumptions         consumptions      // 消费者列表
-	cache                cache.PackCache   // 媒体包缓存
+	consumptions         consumptions    // 消费者列表
+	cache                cache.PackCache // 媒体包缓存
+	flvConsumptions      consumptions
+	flvCache             cache.PackCache
+	flvMuxer             FlvMuxer
 	attrs                map[string]string // 流属性
 	multicast            Multicastable
 	hls                  Hlsable
@@ -83,6 +87,15 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 		option.apply(s)
 	}
 
+	if s.Video.Codec == "H264" {
+		s.flvCache = cache.NewFlvCache(config.CacheGop())
+		s.flvMuxer = newFlvMuxer(s.Video, s.Audio,
+			s, s.logger.With(xlog.Fields(xlog.F("extra", "rtp2flv"))))
+	} else {
+		s.flvCache = cache.NewEmptyCache()
+		s.flvMuxer = emptyFlvMuxer{}
+	}
+
 	return s
 }
 
@@ -94,6 +107,11 @@ func (s *Stream) Path() string {
 // Sdp  sdp 字串
 func (s *Stream) Sdp() string {
 	return s.rawsdp
+}
+
+// FlvTypeFlags 支持的 flv TypeFlags
+func (s *Stream) FlvTypeFlags() byte {
+	return s.flvMuxer.TypeFlags()
 }
 
 // Attr 流属性
@@ -116,9 +134,11 @@ func (s *Stream) close(status int32) error {
 	}
 	atomic.StoreInt32(&s.status, status)
 
-	s.consumptions.RemoveAndCloseAll()
+	s.flvMuxer.Close()
+	s.flvConsumptions.RemoveAndCloseAll()
+	s.flvCache.Reset()
 
-	// 尽早通知GC，回收内存
+	s.consumptions.RemoveAndCloseAll()
 	s.cache.Reset()
 	return nil
 }
@@ -133,9 +153,21 @@ func (s *Stream) WritePacket(packet *rtp.Packet) error {
 	atomic.AddUint64(&s.size, uint64(packet.Size()))
 
 	s.cache.CachePack(packet)
-
 	s.consumptions.SendToAll(packet)
 
+	s.flvMuxer.WritePacket(packet)
+	return nil
+}
+
+// WriteTag .
+func (s *Stream) WriteTag(tag *flv.Tag) error {
+	status := atomic.LoadInt32(&s.status)
+	if status != StreamOK {
+		return statusErrors[status]
+	}
+
+	s.flvCache.CachePack(tag)
+	s.flvConsumptions.SendToAll(tag)
 	return nil
 }
 
@@ -150,6 +182,10 @@ func (s *Stream) Hlsable() Hlsable {
 }
 
 func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra string, useGopCache bool) CID {
+	if packetType == FLVPacket && s.flvMuxer == nil {
+		return CID(0) // 不支持
+	}
+
 	c := &consumption{
 		startOn:    time.Now(),
 		stream:     s,
@@ -166,13 +202,19 @@ func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra st
 		xlog.F("packettype", c.packetType.String()),
 		xlog.F("extra", c.extra)))
 
-	if useGopCache {
-		c.sendGop(s.cache) // 新消费者，先发送gop缓存
+	cs := &s.consumptions
+	cache := s.cache
+	if packetType == FLVPacket {
+		cs = &s.flvConsumptions
+		cache = s.flvCache
 	}
 
-	s.consumptions.Add(c)
-	go c.consume()
+	if useGopCache {
+		c.sendGop(cache) // 新消费者，先发送gop缓存
+	}
+	cs.Add(c)
 
+	go c.consume()
 	return c.cid
 }
 
@@ -188,7 +230,12 @@ func (s *Stream) StartConsumeNoGopCache(consumer Consumer, packetType PacketType
 
 // StopConsume 开始消费
 func (s *Stream) StopConsume(cid CID) {
-	c := s.consumptions.Remove(cid)
+	cs := &s.consumptions
+	if cid.Type() == FLVPacket {
+		cs = &s.flvConsumptions
+	}
+
+	c := cs.Remove(cid)
 	if c != nil {
 		c.Close()
 	}
@@ -196,7 +243,7 @@ func (s *Stream) StopConsume(cid CID) {
 
 // ConsumerCount 流消费者计数
 func (s *Stream) ConsumerCount() int {
-	return s.consumptions.Count()
+	return s.consumptions.Count() + s.flvConsumptions.Count()
 }
 
 // StreamInfo 流信息
@@ -218,7 +265,7 @@ func (s *Stream) Info(includeCS bool) *StreamInfo {
 		Path:             s.path,
 		Addr:             s.Attr("addr"),
 		Size:             int(atomic.LoadUint64(&s.size) / 1024),
-		ConsumptionCount: s.consumptions.Count(),
+		ConsumptionCount: s.ConsumerCount(),
 	}
 
 	if len(s.Video.Codec) != 0 {
@@ -229,13 +276,19 @@ func (s *Stream) Info(includeCS bool) *StreamInfo {
 	}
 	if includeCS {
 		si.Consumptions = s.consumptions.Infos()
+		si.Consumptions = append(si.Consumptions, s.flvConsumptions.Infos()...)
 	}
 	return si
 }
 
 // GetConsumption 获取指定消费信息
 func (s *Stream) GetConsumption(cid CID) (ConsumptionInfo, bool) {
-	c, ok := s.consumptions.Load(cid)
+	cs := &s.consumptions
+	if cid.Type() == FLVPacket {
+		cs = &s.flvConsumptions
+	}
+
+	c, ok := cs.Load(cid)
 	if ok {
 		return c.(*consumption).Info(), ok
 	}

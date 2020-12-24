@@ -11,6 +11,8 @@ import (
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/network/websocket"
 	"github.com/cnotch/ipchub/provider/auth"
+	"github.com/cnotch/ipchub/service/flv"
+	"github.com/cnotch/xlog"
 
 	"github.com/cnotch/apirouter"
 	"github.com/cnotch/ipchub/utils/scan"
@@ -19,7 +21,7 @@ import (
 // 初始化流式访问
 func (s *Service) initHTTPStreams(mux *http.ServeMux) {
 	mux.Handle("/ws/", apirouter.WrapHandler(http.HandlerFunc(s.onWebSocketRequest), apirouter.PreInterceptor(s.streamInterceptor)))
-	// mux.Handle("/streams/", apirouter.WrapHandler(http.HandlerFunc(s.onStreamsRequest), apirouter.PreInterceptor(s.streamInterceptor)))
+	mux.Handle("/streams/", apirouter.WrapHandler(http.HandlerFunc(s.onStreamsRequest), apirouter.PreInterceptor(s.streamInterceptor)))
 }
 
 // websocket 请求处理
@@ -42,37 +44,37 @@ func (s *Service) onWebSocketRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// if ext == ".flv" {
-		// 	go flv.ConsumeByWebsocket(s.logger, streamPath, r.RemoteAddr, ws)
-		// 	return
-		// }
+		if ext == ".flv" {
+			go flv.ConsumeByWebsocket(s.logger, streamPath, r.RemoteAddr, ws)
+			return
+		}
 
 		s.logger.Warnf("websocket sub-protocol is not supported: %s.", ws.Subprotocol())
 		ws.Close()
 	}
 }
 
-// // streams 请求处理(flv,mu38,ts)
-// func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
-// 	// 获取文件后缀和流路径
-// 	streamPath, ext := extractStreamPathAndExt(r.URL.Path)
-// 	s.logger.Debug("http access stream media.",
-// 		xlog.F("path", streamPath),
-// 		xlog.F("ext", ext))
+// streams 请求处理(flv,mu38,ts)
+func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
+	// 获取文件后缀和流路径
+	streamPath, ext := extractStreamPathAndExt(r.URL.Path)
+	s.logger.Debug("http access stream media.",
+		xlog.F("path", streamPath),
+		xlog.F("ext", ext))
 
-// 	w.Header().Set("Access-Control-Allow-Origin", "*")
-// 	switch ext {
-// 	case ".flv":
-// 		flv.ConsumeByHTTP(s.logger, streamPath, r.RemoteAddr, w)
-// 	case ".m3u8":
-// 		hls.GetM3u8(s.logger, streamPath, r.RemoteAddr, w)
-// 	case ".ts":
-// 		hls.GetTS(s.logger, streamPath, r.RemoteAddr, w)
-// 	default:
-// 		s.logger.Warnf("request file ext is not supported: %s.", ext)
-// 		http.NotFound(w, r)
-// 	}
-// }
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	switch ext {
+	case ".flv":
+		flv.ConsumeByHTTP(s.logger, streamPath, r.RemoteAddr, w)
+	// case ".m3u8":
+	// 	hls.GetM3u8(s.logger, streamPath, r.RemoteAddr, w)
+	// case ".ts":
+	// 	hls.GetTS(s.logger, streamPath, r.RemoteAddr, w)
+	default:
+		s.logger.Warnf("request file ext is not supported: %s.", ext)
+		http.NotFound(w, r)
+	}
+}
 
 func (s *Service) streamInterceptor(w http.ResponseWriter, r *http.Request) bool {
 	if path.Base(r.URL.Path) == "crossdomain.xml" {
