@@ -7,18 +7,19 @@ package rtp
 import (
 	"fmt"
 
+	"github.com/cnotch/ipchub/av"
 	"github.com/cnotch/ipchub/av/h264"
 )
 
 type h264FrameExtractor struct {
 	fragments   []*Packet // 分片包
-	w           FrameWriter
+	w           av.FrameWriter
 	syncClock   SyncClock
 	rtpTimeUnit int
 }
 
 // NewH264FrameExtractor 实例化 H264 帧提取器
-func NewH264FrameExtractor(w FrameWriter) FrameExtractor {
+func NewH264FrameExtractor(w av.FrameWriter) FrameExtractor {
 	return &h264FrameExtractor{
 		fragments:   make([]*Packet, 0, 16),
 		w:           w,
@@ -62,11 +63,10 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 		//  |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		//  |                               :...OPTIONAL RTP padding        |
 		//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		frame := &Frame{
-			FrameType: FrameVideo,
-			NTPTime:   fe.rtp2ntp(packet.Timestamp),
-			RTPTime:   packet.Timestamp,
-			Payload:   payload,
+		frame := &av.Frame{
+			FrameType:    av.FrameVideo,
+			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+			Payload:      payload,
 		}
 		err = fe.w.WriteFrame(frame)
 	case naluType == h264.NalStapaInRtp:
@@ -108,11 +108,10 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 		}
 
 		off += 2
-		frame := &Frame{
-			FrameType: FrameVideo,
-			NTPTime:   fe.rtp2ntp(packet.Timestamp),
-			RTPTime:   packet.Timestamp,
-			Payload:   make([]byte, nalSize),
+		frame := &av.Frame{
+			FrameType:    av.FrameVideo,
+			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+			Payload:      make([]byte, nalSize),
 		}
 		copy(frame.Payload, payload[off:])
 		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
@@ -168,11 +167,10 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 			frameLen += len(fragment.Payload()) - 2
 		}
 
-		frame := &Frame{
-			FrameType: FrameVideo,
-			NTPTime:   fe.rtp2ntp(packet.Timestamp),
-			RTPTime:   packet.Timestamp,
-			Payload:   make([]byte, frameLen)}
+		frame := &av.Frame{
+			FrameType:    av.FrameVideo,
+			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+			Payload:      make([]byte, frameLen)}
 
 		frame.Payload[0] = (header & 0x60) | (fuHeader & 0x1F)
 		offset := 1

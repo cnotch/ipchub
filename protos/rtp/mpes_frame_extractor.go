@@ -5,11 +5,12 @@
 package rtp
 
 import (
+	"github.com/cnotch/ipchub/av"
 	"github.com/cnotch/ipchub/av/aac"
 )
 
 type mpesFrameExtractor struct {
-	w           FrameWriter
+	w           av.FrameWriter
 	sizeLength  int
 	indexLength int
 	// extractFunc func(packet *Packet) error
@@ -18,7 +19,7 @@ type mpesFrameExtractor struct {
 }
 
 // NewMPESFrameExtractor 实例化 MPES 帧提取器
-func NewMPESFrameExtractor(w FrameWriter, rtpTimeUnit int) FrameExtractor {
+func NewMPESFrameExtractor(w av.FrameWriter, rtpTimeUnit int) FrameExtractor {
 	fe := &mpesFrameExtractor{
 		w:           w,
 		sizeLength:  13,
@@ -74,11 +75,10 @@ func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error
 	for i := 0; i < int(auHeadersCount); i++ {
 		auHeader := uint16(0) | (uint16(auHeaders[0]) << 8) | uint16(auHeaders[1])
 		frameSize := auHeader >> fe.indexLength
-		frame := &Frame{
-			FrameType: FrameAudio,
-			NTPTime:   fe.rtp2ntp(frameTimeStamp),
-			RTPTime:   frameTimeStamp,
-			Payload:   framesPayload[:frameSize],
+		frame := &av.Frame{
+			FrameType:    av.FrameAudio,
+			AbsTimestamp: fe.rtp2ntp(frameTimeStamp),
+			Payload:      framesPayload[:frameSize],
 		}
 		if err = fe.w.WriteFrame(frame); err != nil {
 			return
@@ -109,11 +109,10 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 	for i := 0; i < int(auHeadersCount); i++ {
 		auHeader := auHeaders[0]
 		frameSize := auHeader >> fe.indexLength
-		frame := &Frame{
-			FrameType: FrameAudio,
-			NTPTime:   fe.rtp2ntp(frameTimeStamp),
-			RTPTime:   frameTimeStamp,
-			Payload:   framesPayload[:frameSize],
+		frame := &av.Frame{
+			FrameType:    av.FrameAudio,
+			AbsTimestamp: fe.rtp2ntp(frameTimeStamp),
+			Payload:      framesPayload[:frameSize],
 		}
 		if err = fe.w.WriteFrame(frame); err != nil {
 			return

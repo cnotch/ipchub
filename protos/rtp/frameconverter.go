@@ -11,6 +11,12 @@ import (
 	"github.com/cnotch/xlog"
 )
 
+// FrameExtractor 帧提取器
+type FrameExtractor interface {
+	Control(p *Packet) error
+	Extract(p *Packet) error
+}
+
 // FrameConverter 帧转换器
 type FrameConverter struct {
 	closed       bool

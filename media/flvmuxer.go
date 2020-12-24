@@ -102,19 +102,19 @@ func (muxer *flvMuxer) prepareTemplate() {
 	muxer.audioDataTemplate = audioData
 }
 
-func (muxer *flvMuxer) WriteFrame(frame *rtp.Frame) error {
+func (muxer *flvMuxer) WriteFrame(frame *av.Frame) error {
 	if muxer.baseNtp == 0 {
-		muxer.baseNtp = frame.NTPTime
+		muxer.baseNtp = frame.AbsTimestamp
 	}
 
-	if frame.FrameType == rtp.FrameVideo {
+	if frame.FrameType == av.FrameVideo {
 		return muxer.muxVideoTag(frame)
 	} else {
 		return muxer.muxAudioTag(frame)
 	}
 }
 
-func (muxer *flvMuxer) muxVideoTag(frame *rtp.Frame) error {
+func (muxer *flvMuxer) muxVideoTag(frame *av.Frame) error {
 	if frame.Payload[0]&0x1F == h264.NalSps {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
@@ -130,7 +130,7 @@ func (muxer *flvMuxer) muxVideoTag(frame *rtp.Frame) error {
 	}
 
 	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseTs
-	pts := frame.NTPTime - muxer.baseNtp + ptsDelay
+	pts := frame.AbsTimestamp - muxer.baseNtp + ptsDelay
 	if dts > pts {
 		pts = dts
 	}
@@ -159,7 +159,7 @@ func (muxer *flvMuxer) muxVideoTag(frame *rtp.Frame) error {
 	return muxer.tagWriter.WriteTag(tag)
 }
 
-func (muxer *flvMuxer) muxAudioTag(frame *rtp.Frame) error {
+func (muxer *flvMuxer) muxAudioTag(frame *av.Frame) error {
 	audioData := *muxer.audioDataTemplate
 	audioData.Body = frame.Payload
 	data, _ := audioData.Marshal()
@@ -167,7 +167,7 @@ func (muxer *flvMuxer) muxAudioTag(frame *rtp.Frame) error {
 	tag := &flv.Tag{
 		TagType:   flv.TagTypeAudio,
 		DataSize:  uint32(len(data)),
-		Timestamp: uint32(frame.NTPTime-muxer.baseNtp) + ptsDelay,
+		Timestamp: uint32(frame.AbsTimestamp-muxer.baseNtp) + ptsDelay,
 		StreamID:  0,
 		Data:      data,
 	}
