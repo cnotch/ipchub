@@ -10,7 +10,7 @@ const (
 	FrameAudio
 )
 
-// Frame 音视频帧
+// Frame 音视频完整帧
 type Frame struct {
 	FrameType byte   // 帧类型
 	NTPTime   int64  // 绝对时间戳，单位 ms
