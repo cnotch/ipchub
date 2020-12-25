@@ -11,7 +11,6 @@ import (
 	"runtime/debug"
 
 	"github.com/cnotch/ipchub/media"
-	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/protos/flv"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/xlog"
@@ -25,7 +24,7 @@ type httpFlvConsumer struct {
 	closed  bool
 }
 
-func (c *httpFlvConsumer) Consume(pack cache.Pack) {
+func (c *httpFlvConsumer) Consume(pack Pack) {
 	if c.closed {
 		return
 	}

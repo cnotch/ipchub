@@ -25,7 +25,7 @@ type FlvCache struct {
 }
 
 // NewFlvCache 创建FlvCache实例
-func NewFlvCache(cacheGop bool) PackCache {
+func NewFlvCache(cacheGop bool) *FlvCache {
 	return &FlvCache{
 		cacheGop: cacheGop,
 	}

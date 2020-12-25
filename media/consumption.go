@@ -9,7 +9,6 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
@@ -17,7 +16,7 @@ import (
 
 // Consumer 消费者接口
 type Consumer interface {
-	Consume(pack cache.Pack)
+	Consume(pack Pack)
 	io.Closer
 }
 
@@ -51,14 +50,14 @@ func (c *consumption) Close() error {
 }
 
 // 向消费者发送媒体包
-func (c *consumption) send(pack cache.Pack) {
+func (c *consumption) send(pack Pack) {
 	c.recvQueue.Push(pack)
 	c.Flow.AddIn(int64(pack.Size()))
 }
 
 // 向消费者发送一个图像组
-func (c *consumption) sendGop(packCache cache.PackCache) int {
-	bytes := packCache.PushTo(c.recvQueue)
+func (c *consumption) sendGop(cache packCache) int {
+	bytes := cache.PushTo(c.recvQueue)
 	c.Flow.AddIn(int64(bytes))
 	return bytes
 }
@@ -91,7 +90,7 @@ func (c *consumption) consume() {
 			continue
 		}
 
-		pack := p.(cache.Pack)
+		pack := p.(Pack)
 		c.consumer.Consume(pack)
 		c.Flow.AddOut(int64(pack.Size()))
 	}

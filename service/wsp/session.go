@@ -17,7 +17,6 @@ import (
 
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media"
-	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/network/websocket"
 	"github.com/cnotch/ipchub/provider/security"
 	"github.com/cnotch/ipchub/service/rtsp"
@@ -25,9 +24,6 @@ import (
 	"github.com/cnotch/xlog"
 	"github.com/pixelbender/go-sdp/sdp"
 )
-
-// Pack .
-type Pack = cache.Pack
 
 const (
 	statusInit = iota

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/cnotch/ipchub/media"
-	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/network/websocket"
 	"github.com/cnotch/ipchub/protos/flv"
 	"github.com/cnotch/ipchub/stats"
@@ -23,7 +22,7 @@ type wsFlvConsumer struct {
 	closed bool
 }
 
-func (c *wsFlvConsumer) Consume(pack cache.Pack) {
+func (c *wsFlvConsumer) Consume(pack Pack) {
 	if c.closed {
 		return
 	}

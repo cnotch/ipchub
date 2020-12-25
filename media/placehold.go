@@ -8,14 +8,36 @@ import (
 	"io"
 
 	"github.com/cnotch/ipchub/av"
+	"github.com/cnotch/ipchub/protos"
 	"github.com/cnotch/ipchub/protos/rtp"
+	"github.com/cnotch/queue"
 )
+
+// Pack .
+type Pack = protos.Pack
+
+type packCache interface {
+	CachePack(pack Pack)
+	PushTo(q *queue.SyncQueue) int
+	Reset()
+}
+
+var _ packCache = emptyCache{}
+
+type emptyCache struct {
+}
+
+func (emptyCache) CachePack(Pack)                {}
+func (emptyCache) PushTo(q *queue.SyncQueue) int { return 0 }
+func (emptyCache) Reset()                        {}
 
 type flvMuxer interface {
 	TypeFlags() byte
 	av.FrameWriter
 	io.Closer
 }
+
+var _ flvMuxer = emptyFlvMuxer{}
 
 type emptyFlvMuxer struct{}
 
@@ -27,6 +49,8 @@ type frameConverter interface {
 	rtp.PacketWriter
 	io.Closer
 }
+
+var _ frameConverter = emptyFrameConverter{}
 
 type emptyFrameConverter struct{}
 

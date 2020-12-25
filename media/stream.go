@@ -46,12 +46,12 @@ type Stream struct {
 	size                 uint64 // 流已经接收到的输入（字节）
 	status               int32  // 流状态
 	consumerSequenceSeed uint32
-	consumptions         consumptions    // 消费者列表
-	cache                cache.PackCache // 媒体包缓存
+	consumptions         consumptions // 消费者列表
+	cache                packCache    // 媒体包缓存
 	frameConverter       frameConverter
 	flvMuxer             flvMuxer
 	flvConsumptions      consumptions
-	flvCache             cache.PackCache
+	flvCache             packCache
 	attrs                map[string]string // 流属性
 	multicast            Multicastable
 	hls                  Hlsable
@@ -82,7 +82,7 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 	case "H265":
 		s.cache = cache.NewHevcCache(config.CacheGop())
 	default:
-		s.cache = cache.NewEmptyCache()
+		s.cache = emptyCache{}
 	}
 
 	for _, option := range options {
@@ -117,7 +117,7 @@ func (s *Stream) prepareOtherStream() {
 		s.flvMuxer = flv.NewMuxerAvcAac(s.Video, s.Audio,
 			s, s.logger.With(xlog.Fields(xlog.F("extra", "frame2flv"))))
 	} else {
-		s.flvCache = cache.NewEmptyCache()
+		s.flvCache = emptyCache{}
 		s.flvMuxer = emptyFlvMuxer{}
 	}
 }

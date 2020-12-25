@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/protos/rtp"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,14 +26,14 @@ func (m emptyMulticastable) TTL() int                { return 0 }
 type emptyConsumer struct {
 }
 
-func (c emptyConsumer) Consume(pack cache.Pack) {}
-func (c emptyConsumer) Close() error            { return nil }
+func (c emptyConsumer) Consume(pack Pack) {}
+func (c emptyConsumer) Close() error      { return nil }
 
 type panicConsumer struct {
 	try int
 }
 
-func (c *panicConsumer) Consume(pack cache.Pack) {
+func (c *panicConsumer) Consume(pack Pack) {
 	c.try++
 	if c.try > 3 {
 		panic("panicConsumer")

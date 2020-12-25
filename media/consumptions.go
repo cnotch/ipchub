@@ -8,8 +8,6 @@ import (
 	"sort"
 	"sync"
 	"sync/atomic"
-
-	"github.com/cnotch/ipchub/media/cache"
 )
 
 type consumptions struct {
@@ -17,7 +15,7 @@ type consumptions struct {
 	count int32
 }
 
-func (m *consumptions) SendToAll(p cache.Pack) {
+func (m *consumptions) SendToAll(p Pack) {
 	m.Range(func(key, value interface{}) bool {
 		c := value.(*consumption)
 		c.send(p)

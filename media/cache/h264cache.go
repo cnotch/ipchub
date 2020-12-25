@@ -17,12 +17,12 @@ type H264Cache struct {
 	cacheGop bool
 	l        sync.RWMutex
 	gop      queue.Queue
-	spsPack  Pack // 序列参数集包
-	ppsPack  Pack // 图像参数集包
+	sps      *rtp.Packet // 序列参数集包
+	pps      *rtp.Packet // 图像参数集包
 }
 
 // NewH264Cache 创建 H264 缓存
-func NewH264Cache(cacheGop bool) PackCache {
+func NewH264Cache(cacheGop bool) *H264Cache {
 	return &H264Cache{
 		cacheGop: cacheGop,
 	}
@@ -43,21 +43,21 @@ func (cache *H264Cache) CachePack(pack Pack) {
 	defer cache.l.Unlock()
 
 	if sps { // 新序列参数,重置图像参数和 GopCache
-		cache.spsPack = pack
+		cache.sps = rtppack
 		return
 	}
 
 	if pps { // 新图像参数，重置 GopCahce
-		cache.ppsPack = pack
+		cache.pps = rtppack
 		return
 	}
 
 	if cache.cacheGop { // 需要缓存 GOP
 		if islice { // 关键帧
 			cache.gop.Reset()
-			cache.gop.Push(pack)
+			cache.gop.Push(rtppack)
 		} else if cache.gop.Len() > 0 { // 必须关键帧作为cache的第一个包
-			cache.gop.Push(pack)
+			cache.gop.Push(rtppack)
 		}
 	}
 }
@@ -67,8 +67,8 @@ func (cache *H264Cache) Reset() {
 	cache.l.Lock()
 	defer cache.l.Unlock()
 
-	cache.spsPack = nil
-	cache.ppsPack = nil
+	cache.sps = nil
+	cache.pps = nil
 	cache.gop.Reset()
 }
 
@@ -79,13 +79,13 @@ func (cache *H264Cache) PushTo(q *queue.SyncQueue) int {
 	defer cache.l.RUnlock()
 
 	// 写参数包
-	if cache.spsPack != nil {
-		q.Queue().Push(cache.spsPack)
-		bytes += cache.spsPack.Size()
+	if cache.sps != nil {
+		q.Queue().Push(cache.sps)
+		bytes += cache.sps.Size()
 	}
-	if cache.ppsPack != nil {
-		q.Queue().Push(cache.ppsPack)
-		bytes += cache.ppsPack.Size()
+	if cache.pps != nil {
+		q.Queue().Push(cache.pps)
+		bytes += cache.pps.Size()
 	}
 
 	// 如果必要，写 GopCache

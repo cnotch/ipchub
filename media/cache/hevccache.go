@@ -17,13 +17,13 @@ type HevcCache struct {
 	cacheGop bool
 	l        sync.RWMutex
 	gop      queue.Queue
-	vpsPack  Pack // 视频参数集包
-	spsPack  Pack // 序列参数集包
-	ppsPack  Pack // 图像参数集包
+	vps      *rtp.Packet // 视频参数集包
+	sps      *rtp.Packet // 序列参数集包
+	pps      *rtp.Packet // 图像参数集包
 }
 
 // NewHevcCache 创建 HEVC 缓存
-func NewHevcCache(cacheGop bool) PackCache {
+func NewHevcCache(cacheGop bool) *HevcCache {
 	return &HevcCache{
 		cacheGop: cacheGop,
 	}
@@ -44,26 +44,26 @@ func (cache *HevcCache) CachePack(pack Pack) {
 	defer cache.l.Unlock()
 
 	if vps { // 视频参数
-		cache.vpsPack = pack
+		cache.vps = rtppack
 		return
 	}
 
 	if sps { // 序列头参数
-		cache.spsPack = pack
+		cache.sps = rtppack
 		return
 	}
 
 	if pps { // 图像参数
-		cache.ppsPack = pack
+		cache.pps = rtppack
 		return
 	}
 
 	if cache.cacheGop { // 需要缓存 GOP
 		if islice { // 关键帧
 			cache.gop.Reset()
-			cache.gop.Push(pack)
+			cache.gop.Push(rtppack)
 		} else if cache.gop.Len() > 0 {
-			cache.gop.Push(pack)
+			cache.gop.Push(rtppack)
 		}
 	}
 }
@@ -73,9 +73,9 @@ func (cache *HevcCache) Reset() {
 	cache.l.Lock()
 	defer cache.l.Unlock()
 
-	cache.vpsPack = nil
-	cache.spsPack = nil
-	cache.ppsPack = nil
+	cache.vps = nil
+	cache.sps = nil
+	cache.pps = nil
 	cache.gop.Reset()
 }
 
@@ -86,19 +86,19 @@ func (cache *HevcCache) PushTo(q *queue.SyncQueue) int {
 	defer cache.l.RUnlock()
 
 	// 写参数包
-	if cache.vpsPack != nil {
-		q.Queue().Push(cache.vpsPack)
-		bytes += cache.vpsPack.Size()
+	if cache.vps != nil {
+		q.Queue().Push(cache.vps)
+		bytes += cache.vps.Size()
 	}
 
-	if cache.spsPack != nil {
-		q.Queue().Push(cache.spsPack)
-		bytes += cache.spsPack.Size()
+	if cache.sps != nil {
+		q.Queue().Push(cache.sps)
+		bytes += cache.sps.Size()
 	}
 
-	if cache.ppsPack != nil {
-		q.Queue().Push(cache.ppsPack)
-		bytes += cache.ppsPack.Size()
+	if cache.pps != nil {
+		q.Queue().Push(cache.pps)
+		bytes += cache.pps.Size()
 	}
 
 	// 如果必要，写 GopCache
