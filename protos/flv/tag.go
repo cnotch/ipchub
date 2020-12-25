@@ -50,7 +50,17 @@ func (tag *Tag) Size() int {
 	return TagHeaderSize + len(tag.Data)
 }
 
-// IsMetadata 是否是元数据 tag
+// IsVideo 判断是否是视频 Tag
+func (tag *Tag) IsVideo() bool {
+	return tag.TagType == TagTypeVideo
+}
+
+// IsAudio 判断是否是音频 Tag
+func (tag *Tag) IsAudio() bool {
+	return tag.TagType == TagTypeAudio
+}
+
+// IsMetadata 判断是否是元数据 tag
 func (tag *Tag) IsMetadata() bool {
 	if tag.TagType != TagTypeAmf0Data {
 		return false
@@ -61,6 +71,41 @@ func (tag *Tag) IsMetadata() bool {
 		return name == ScriptOnMetaData
 	}
 	return false
+}
+
+// IsH264KeyFrame 判断是否是 H264 关键帧 Tag
+func (tag *Tag) IsH264KeyFrame() bool {
+	if len(tag.Data) < 2 {
+		return false
+	}
+
+	return tag.TagType == TagTypeVideo &&
+		(tag.Data[0]&0x0f) == CodecIDAVC &&
+		((tag.Data[0]>>4)&0x0f) == FrameTypeKeyFrame
+}
+
+// IsH264SequenceHeader 判断是否是 H264 序列头 Tag
+func (tag *Tag) IsH264SequenceHeader() bool {
+	if len(tag.Data) < 2 {
+		return false
+	}
+
+	return tag.TagType == TagTypeVideo &&
+		(tag.Data[0]&0x0f) == CodecIDAVC &&
+		((tag.Data[0]>>4)&0x0f) == FrameTypeKeyFrame &&
+		tag.Data[1] == AVCPacketTypeSequenceHeader
+
+}
+
+// IsAACSequenceHeader 判断是否是 AAC 序列头 Tag
+func (tag *Tag) IsAACSequenceHeader() bool {
+	if len(tag.Data) < 2 {
+		return false
+	}
+
+	return tag.TagType == TagTypeAudio &&
+		((tag.Data[0]>>4)&0x0f == SoundFormatAAC) &&
+		tag.Data[1] == AACPacketTypeSequenceHeader
 }
 
 // Read 根据规范的格式从 r 中读取 flv Tag。
