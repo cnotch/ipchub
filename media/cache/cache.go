@@ -4,6 +4,8 @@
 
 package cache
 
+import "github.com/cnotch/queue"
+
 // Pack 表示流媒体包
 type Pack interface {
 	Size() int // 包内数据的长度
@@ -12,16 +14,16 @@ type Pack interface {
 // PackCache 媒体包缓存接口
 type PackCache interface {
 	CachePack(pack Pack)
-	EnqueueTo(q *PackQueue) int
+	PushTo(q *queue.SyncQueue) int
 	Reset()
 }
 
 type emptyCache struct {
 }
 
-func (emptyCache) CachePack(Pack)             {}
-func (emptyCache) EnqueueTo(q *PackQueue) int { return 0 }
-func (emptyCache) Reset()                     {}
+func (emptyCache) CachePack(Pack)                {}
+func (emptyCache) PushTo(q *queue.SyncQueue) int { return 0 }
+func (emptyCache) Reset()                        {}
 
 // NewEmptyCache .
 func NewEmptyCache() PackCache {

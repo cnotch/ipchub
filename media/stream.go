@@ -17,6 +17,7 @@ import (
 	"github.com/cnotch/ipchub/protos/rtp"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/ipchub/utils"
+	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
 )
 
@@ -190,7 +191,7 @@ func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra st
 		startOn:    time.Now(),
 		stream:     s,
 		cid:        NewCID(packetType, &s.consumerSequenceSeed),
-		recvQueue:  cache.NewPackQueue(),
+		recvQueue:  queue.NewSyncQueue(),
 		consumer:   consumer,
 		packetType: packetType,
 		extra:      extra,

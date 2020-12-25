@@ -11,10 +11,10 @@ import (
 
 	"github.com/cnotch/ipchub/av"
 	"github.com/cnotch/ipchub/av/h264"
-	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/protos/amf"
 	"github.com/cnotch/ipchub/protos/flv"
 	"github.com/cnotch/ipchub/protos/rtp"
+	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
 )
 
@@ -27,7 +27,7 @@ type flvMuxer struct {
 	audioMeta         av.AudioMeta
 	typeFlags         byte
 	audioDataTemplate *flv.AudioData
-	recvQueue         *cache.PackQueue
+	recvQueue         *queue.SyncQueue
 	extractFuncs      [4]func(packet *rtp.Packet) error
 	tagWriter         flv.TagWriter
 	closed            bool
@@ -39,7 +39,7 @@ type flvMuxer struct {
 
 func newFlvMuxer(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter flv.TagWriter, logger *xlog.Logger) FlvMuxer {
 	muxer := &flvMuxer{
-		recvQueue: cache.NewPackQueue(),
+		recvQueue: queue.NewSyncQueue(),
 		videoMeta: videoMeta,
 		audioMeta: audioMeta,
 		typeFlags: byte(flv.TypeFlagsVideo),
@@ -317,14 +317,14 @@ func (muxer *flvMuxer) consume() {
 		}
 
 		// 尽早通知GC，回收内存
-		muxer.recvQueue.Clear()
+		muxer.recvQueue.Reset()
 	}()
 
 	muxer.muxMetadataTag()
 	muxer.muxSequenceHeaderTag()
 
 	for !muxer.closed {
-		pack := muxer.recvQueue.Dequeue()
+		pack := muxer.recvQueue.Pop()
 		if pack == nil {
 			if !muxer.closed {
 				muxer.logger.Warn("flvmuxer:receive nil packet")
@@ -351,7 +351,7 @@ func (muxer *flvMuxer) Close() error {
 }
 
 func (muxer *flvMuxer) WritePacket(packet *rtp.Packet) error {
-	muxer.recvQueue.Enqueue(packet)
+	muxer.recvQueue.Push(packet)
 	return nil
 }
 

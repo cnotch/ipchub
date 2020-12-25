@@ -8,13 +8,14 @@ import (
 	"sync"
 
 	"github.com/cnotch/ipchub/protos/flv"
+	"github.com/cnotch/queue"
 )
 
 // FlvCache Flv包缓存.
 type FlvCache struct {
 	cacheGop bool
 	l        sync.RWMutex
-	gop      PackBuffer
+	gop      queue.Queue
 	// cached meta data
 	metaData *flv.Tag
 	// cached video sequence header
@@ -53,9 +54,9 @@ func (cache *FlvCache) CachePack(pack Pack) {
 	if cache.cacheGop { // 如果启用 FlvCache
 		if tag.IsH264KeyFrame() { // 关键帧，重置GOP
 			cache.gop.Reset()
-			cache.gop.WritePack(pack)
+			cache.gop.Push(pack)
 		} else if cache.gop.Len() > 0 { // 必须关键帧作为cache的第一个包
-			cache.gop.WritePack(pack)
+			cache.gop.Push(pack)
 		}
 	}
 }
@@ -70,14 +71,14 @@ func (cache *FlvCache) Reset() {
 	cache.audioSequenceHeader = nil
 }
 
-// EnqueueTo 入列到指定的队列
-func (cache *FlvCache) EnqueueTo(q *PackQueue) int {
+// PushTo 入列到指定的队列
+func (cache *FlvCache) PushTo(q *queue.SyncQueue) int {
 	cache.l.RLock()
 	defer cache.l.RUnlock()
 
 	bytes := 0
 
-	gop := cache.gop.Packs()
+	gop := cache.gop.Elems()
 	initTimestamp := uint32(0)
 	if len(gop) > 0 {
 		tag := gop[0].(*flv.Tag)
@@ -87,28 +88,28 @@ func (cache *FlvCache) EnqueueTo(q *PackQueue) int {
 	//write meta data
 	if nil != cache.metaData {
 		cache.metaData.Timestamp = initTimestamp
-		q.Buffer().WritePack(cache.metaData)
+		q.Queue().Push(cache.metaData)
 		bytes += cache.metaData.Size()
 	}
 
 	//write video data
 	if nil != cache.videoSequenceHeader {
 		cache.videoSequenceHeader.Timestamp = initTimestamp
-		q.Buffer().WritePack(cache.videoSequenceHeader)
+		q.Queue().Push(cache.videoSequenceHeader)
 		bytes += cache.videoSequenceHeader.Size()
 	}
 
 	//write audio data
 	if nil != cache.audioSequenceHeader {
 		cache.audioSequenceHeader.Timestamp = initTimestamp
-		q.Buffer().WritePack(cache.audioSequenceHeader)
+		q.Queue().Push(cache.audioSequenceHeader)
 		bytes += cache.audioSequenceHeader.Size()
 	}
 
 	// write gop
-	q.Buffer().Write(gop) // 启动阶段调用，无需加锁
+	q.Queue().PushN(gop) // 启动阶段调用，无需加锁
 	for _, p := range gop {
-		bytes += p.Size()
+		bytes += p.(Pack).Size()
 	}
 
 	return bytes

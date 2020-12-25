@@ -9,13 +9,14 @@ import (
 
 	"github.com/cnotch/ipchub/av/hevc"
 	"github.com/cnotch/ipchub/protos/rtp"
+	"github.com/cnotch/queue"
 )
 
 // HevcCache 画面组缓存(Group of Pictures).
 type HevcCache struct {
 	cacheGop bool
 	l        sync.RWMutex
-	gop      PackBuffer
+	gop      queue.Queue
 	vpsPack  Pack // 视频参数集包
 	spsPack  Pack // 序列参数集包
 	ppsPack  Pack // 图像参数集包
@@ -60,9 +61,9 @@ func (cache *HevcCache) CachePack(pack Pack) {
 	if cache.cacheGop { // 需要缓存 GOP
 		if islice { // 关键帧
 			cache.gop.Reset()
-			cache.gop.WritePack(pack)
+			cache.gop.Push(pack)
 		} else if cache.gop.Len() > 0 {
-			cache.gop.WritePack(pack)
+			cache.gop.Push(pack)
 		}
 	}
 }
@@ -78,34 +79,34 @@ func (cache *HevcCache) Reset() {
 	cache.gop.Reset()
 }
 
-// EnqueueTo 入列到指定的队列
-func (cache *HevcCache) EnqueueTo(q *PackQueue) int {
+// PushTo 入列到指定的队列
+func (cache *HevcCache) PushTo(q *queue.SyncQueue) int {
 	bytes := 0
 	cache.l.RLock()
 	defer cache.l.RUnlock()
 
 	// 写参数包
 	if cache.vpsPack != nil {
-		q.Buffer().WritePack(cache.vpsPack)
+		q.Queue().Push(cache.vpsPack)
 		bytes += cache.vpsPack.Size()
 	}
 
 	if cache.spsPack != nil {
-		q.Buffer().WritePack(cache.spsPack)
+		q.Queue().Push(cache.spsPack)
 		bytes += cache.spsPack.Size()
 	}
 
 	if cache.ppsPack != nil {
-		q.Buffer().WritePack(cache.ppsPack)
+		q.Queue().Push(cache.ppsPack)
 		bytes += cache.ppsPack.Size()
 	}
 
 	// 如果必要，写 GopCache
 	if cache.cacheGop {
-		packs := cache.gop.Packs()
-		q.Buffer().Write(packs) // 启动阶段调用，无需加锁
+		packs := cache.gop.Elems()
+		q.Queue().PushN(packs) // 启动阶段调用，无需加锁
 		for _, p := range packs {
-			bytes += p.Size()
+			bytes += p.(Pack).Size()
 		}
 	}
 

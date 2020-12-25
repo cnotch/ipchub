@@ -11,6 +11,7 @@ import (
 
 	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/stats"
+	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
 )
 
@@ -28,7 +29,7 @@ type consumption struct {
 	consumer   Consumer         // 消费者
 	packetType PacketType       // 消费的包类型
 	extra      string           // 消费者额外信息
-	recvQueue  *cache.PackQueue // 接收媒体源数据的队列
+	recvQueue  *queue.SyncQueue // 接收媒体源数据的队列
 	closed     bool             // 消费者是否关闭
 	Flow       stats.Flow       // 流量统计
 	logger     *xlog.Logger     // 日志对象
@@ -51,13 +52,13 @@ func (c *consumption) Close() error {
 
 // 向消费者发送媒体包
 func (c *consumption) send(pack cache.Pack) {
-	c.recvQueue.Enqueue(pack)
+	c.recvQueue.Push(pack)
 	c.Flow.AddIn(int64(pack.Size()))
 }
 
 // 向消费者发送一个图像组
 func (c *consumption) sendGop(packCache cache.PackCache) int {
-	bytes := packCache.EnqueueTo(c.recvQueue)
+	bytes := packCache.PushTo(c.recvQueue)
 	c.Flow.AddIn(int64(bytes))
 	return bytes
 }
@@ -77,19 +78,19 @@ func (c *consumption) consume() {
 		c.consumer.Close()
 
 		// 尽早通知GC，回收内存
-		c.recvQueue.Clear()
+		c.recvQueue.Reset()
 		c.stream = nil
 	}()
 
 	for !c.closed {
-		pack := c.recvQueue.Dequeue()
-		if pack == nil {
+		e := c.recvQueue.Pop()
+		if e == nil {
 			if !c.closed {
 				c.logger.Warn("receive nil pack")
 			}
 			continue
 		}
-
+		pack := e.(cache.Pack)
 		c.consumer.Consume(pack)
 		c.Flow.AddOut(int64(pack.Size()))
 	}
