@@ -83,14 +83,15 @@ func (c *consumption) consume() {
 	}()
 
 	for !c.closed {
-		e := c.recvQueue.Pop()
-		if e == nil {
+		p := c.recvQueue.Pop()
+		if p == nil {
 			if !c.closed {
 				c.logger.Warn("receive nil pack")
 			}
 			continue
 		}
-		pack := e.(cache.Pack)
+
+		pack := p.(cache.Pack)
 		c.consumer.Consume(pack)
 		c.Flow.AddOut(int64(pack.Size()))
 	}

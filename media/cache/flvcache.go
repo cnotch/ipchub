@@ -87,23 +87,26 @@ func (cache *FlvCache) PushTo(q *queue.SyncQueue) int {
 
 	//write meta data
 	if nil != cache.metaData {
-		cache.metaData.Timestamp = initTimestamp
-		q.Queue().Push(cache.metaData)
-		bytes += cache.metaData.Size()
+		metaData := *cache.metaData
+		metaData.Timestamp = initTimestamp
+		q.Queue().Push(&metaData)
+		bytes += metaData.Size()
 	}
 
 	//write video data
 	if nil != cache.videoSequenceHeader {
-		cache.videoSequenceHeader.Timestamp = initTimestamp
-		q.Queue().Push(cache.videoSequenceHeader)
-		bytes += cache.videoSequenceHeader.Size()
+		videoSequenceHeader := *cache.videoSequenceHeader
+		videoSequenceHeader.Timestamp = initTimestamp
+		q.Queue().Push(&videoSequenceHeader)
+		bytes += videoSequenceHeader.Size()
 	}
 
 	//write audio data
 	if nil != cache.audioSequenceHeader {
-		cache.audioSequenceHeader.Timestamp = initTimestamp
-		q.Queue().Push(cache.audioSequenceHeader)
-		bytes += cache.audioSequenceHeader.Size()
+		audioSequenceHeader := *cache.audioSequenceHeader
+		audioSequenceHeader.Timestamp = initTimestamp
+		q.Queue().Push(&audioSequenceHeader)
+		bytes += audioSequenceHeader.Size()
 	}
 
 	// write gop

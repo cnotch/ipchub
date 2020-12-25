@@ -96,14 +96,15 @@ func (muxer *MuxerAvcAac) process() {
 	muxer.muxSequenceHeaderTag()
 
 	for !muxer.closed {
-		frame := muxer.recvQueue.Pop().(*av.Frame)
-		if frame == nil {
+		f := muxer.recvQueue.Pop()
+		if f == nil {
 			if !muxer.closed {
 				muxer.logger.Warn("flvmuxer:receive nil frame")
 			}
 			continue
 		}
 
+		frame := f.(*av.Frame)
 		if muxer.baseNtp == 0 {
 			muxer.baseNtp = frame.AbsTimestamp
 		}

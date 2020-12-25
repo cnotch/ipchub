@@ -48,9 +48,10 @@ type Stream struct {
 	consumerSequenceSeed uint32
 	consumptions         consumptions    // 消费者列表
 	cache                cache.PackCache // 媒体包缓存
+	frameConverter       frameConverter
+	flvMuxer             flvMuxer
 	flvConsumptions      consumptions
 	flvCache             cache.PackCache
-	flvMuxer             FlvMuxer
 	attrs                map[string]string // 流属性
 	multicast            Multicastable
 	hls                  Hlsable
@@ -88,16 +89,37 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 		option.apply(s)
 	}
 
+	// prepareOtherStream
+	s.prepareOtherStream()
+	return s
+}
+
+func (s *Stream) prepareOtherStream() {
+	// steam(rtp)->frameconverter->stream(frame)->flvmuxer->stream(tag)
+	// prepare rtp.Packet -> av.Frame
+	var videoExtractor, audioExtractor rtp.FrameExtractor
+	if s.Video.Codec == "H264" {
+		videoExtractor = rtp.NewH264FrameExtractor(s)
+	}
+	if s.Audio.Codec == "AAC" {
+		audioExtractor = rtp.NewMPESFrameExtractor(s, s.Audio.SampleRate)
+	}
+	if videoExtractor == nil && audioExtractor == nil {
+		s.frameConverter = emptyFrameConverter{}
+	} else {
+		s.frameConverter = rtp.NewFrameConverter(videoExtractor, audioExtractor,
+			s.logger.With(xlog.Fields(xlog.F("extra", "rtp2frame"))))
+	}
+
+	// prepare av.Frame -> flv.Tag
 	if s.Video.Codec == "H264" {
 		s.flvCache = cache.NewFlvCache(config.CacheGop())
-		s.flvMuxer = newFlvMuxer(s.Video, s.Audio,
-			s, s.logger.With(xlog.Fields(xlog.F("extra", "rtp2flv"))))
+		s.flvMuxer = flv.NewMuxerAvcAac(s.Video, s.Audio,
+			s, s.logger.With(xlog.Fields(xlog.F("extra", "frame2flv"))))
 	} else {
 		s.flvCache = cache.NewEmptyCache()
 		s.flvMuxer = emptyFlvMuxer{}
 	}
-
-	return s
 }
 
 // Path 流路径
@@ -135,9 +157,13 @@ func (s *Stream) close(status int32) error {
 	}
 	atomic.StoreInt32(&s.status, status)
 
-	s.flvMuxer.Close()
+	// 关闭 flv 消费者和 Muxer
 	s.flvConsumptions.RemoveAndCloseAll()
 	s.flvCache.Reset()
+	s.flvMuxer.Close()
+
+	// 关闭 av.Frame 转换器
+	s.frameConverter.Close()
 
 	s.consumptions.RemoveAndCloseAll()
 	s.cache.Reset()
@@ -156,8 +182,13 @@ func (s *Stream) WritePacket(packet *rtp.Packet) error {
 	s.cache.CachePack(packet)
 	s.consumptions.SendToAll(packet)
 
-	s.flvMuxer.WritePacket(packet)
+	s.frameConverter.WritePacket(packet)
 	return nil
+}
+
+// WriteFrame .
+func (s *Stream) WriteFrame(frame *av.Frame) error {
+	return s.flvMuxer.WriteFrame(frame)
 }
 
 // WriteTag .
