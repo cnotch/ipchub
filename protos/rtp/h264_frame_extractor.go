@@ -63,6 +63,9 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 		//  |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		//  |                               :...OPTIONAL RTP padding        |
 		//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		if payload[0]&0x1f == h264.NalFillerData {
+			return
+		}
 		frame := &av.Frame{
 			FrameType:    av.FrameVideo,
 			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
@@ -108,17 +111,18 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 		}
 
 		off += 2
-		frame := &av.Frame{
-			FrameType:    av.FrameVideo,
-			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
-			Payload:      make([]byte, nalSize),
+		if payload[off]&0x1f != h264.NalFillerData {
+			frame := &av.Frame{
+				FrameType:    av.FrameVideo,
+				AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+				Payload:      make([]byte, nalSize),
+			}
+			copy(frame.Payload, payload[off:])
+			frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
+			if err = fe.w.WriteFrame(frame); err != nil {
+				return
+			}
 		}
-		copy(frame.Payload, payload[off:])
-		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
-		if err = fe.w.WriteFrame(frame); err != nil {
-			return
-		}
-
 		off += int(nalSize)
 		if off >= len(payload) { // 扫描完成
 			break
@@ -148,6 +152,10 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 	// |S|E|R|  Type   |
 	// +---------------+
 	fuHeader := payload[1]
+	if fuHeader&0x1F == h264.NalFillerData {
+		return
+	}
+
 	if (fuHeader>>7)&1 == 1 { // 第一个分片包
 		fe.fragments = fe.fragments[:0]
 	}
