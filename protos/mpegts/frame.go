@@ -32,7 +32,7 @@ type Frame struct {
 	Header   []byte // 1. AAC-ADTS Header; 2. aud nal [+sps nal+pps nal]+sample nal start code
 	Payload  []byte // data without startcode
 	key      bool
-	next     *Frame // 音频可以多个包同时写
+	Next     *Frame // 注意：仅用于音频，表示多个音频帧合并成一个Packet输出，以减少填充
 }
 
 // IsVideo .

@@ -136,10 +136,13 @@ func (w *Writer) WriteMpegtsFrame(frame *Frame) (err error) {
 
 	buf.Write(frame.Header)
 	buf.Write(frame.Payload)
-	// 额外帧
-	for next := frame.next; next != nil; next = next.next {
-		buf.Write(next.Header)
-		buf.Write(next.Payload)
+
+	// 音频一包多帧处理
+	if frame.Pid == tsAudioPid {
+		for next := frame.Next; next != nil; next = next.Next {
+			buf.Write(next.Header)
+			buf.Write(next.Payload)
+		}
 	}
 
 	avdata := buf.Bytes()

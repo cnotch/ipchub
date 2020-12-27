@@ -19,22 +19,19 @@ import (
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 // 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
 const ptsDelay = 1000
-const aacDelay = 100
 
 // MuxerAvcAac flv muxer from av.Frame(H264[+AAC])
 type MuxerAvcAac struct {
-	videoMeta        av.VideoMeta
-	audioMeta        av.AudioMeta
-	hasAudio         bool
-	audioSps         aac.RawSPS
-	audioCacheHeader *Frame
-	audioCacheTail   *Frame
-	recvQueue        *queue.SyncQueue
-	tsframeWriter    FrameWriter
-	closed           bool
-	basePts          int64
-	baseDts          int64
-	logger           *xlog.Logger // 日志对象
+	videoMeta     av.VideoMeta
+	audioMeta     av.AudioMeta
+	hasAudio      bool
+	audioSps      aac.RawSPS
+	recvQueue     *queue.SyncQueue
+	tsframeWriter FrameWriter
+	closed        bool
+	basePts       int64
+	baseDts       int64
+	logger        *xlog.Logger // 日志对象
 }
 
 // NewMuxerAvcAac .
@@ -184,19 +181,5 @@ func (muxer *MuxerAvcAac) muxAudioTag(frame *av.Frame) error {
 	}
 
 	tsframe.prepareAacHeader(&muxer.audioSps)
-	if muxer.audioCacheHeader == nil {
-		muxer.audioCacheHeader = tsframe
-		muxer.audioCacheTail = tsframe
-	} else {
-		muxer.audioCacheTail.next = tsframe
-		muxer.audioCacheTail = tsframe
-	}
-
-	if tsframe.Pts-muxer.audioCacheHeader.Pts > aacDelay*90 {
-		err := muxer.tsframeWriter.WriteMpegtsFrame(muxer.audioCacheHeader)
-		muxer.audioCacheHeader = nil
-		muxer.audioCacheTail = nil
-		return err
-	}
-	return nil
+	return muxer.tsframeWriter.WriteMpegtsFrame(tsframe)
 }
