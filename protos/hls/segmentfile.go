@@ -20,7 +20,7 @@ type segmentFile interface {
 	open(path string) error
 	close() error
 	writeFrame(frame *mpegts.Frame) error
-	get() (io.Reader, error)
+	get() (io.Reader, int, error)
 	delete() error
 }
 
@@ -50,8 +50,9 @@ func (mf *memorySegmentFile) close() (err error) {
 	return
 }
 
-func (mf *memorySegmentFile) get() (io.Reader, error) {
-	return bytes.NewReader(mf.buff.Bytes()), nil
+func (mf *memorySegmentFile) get() (io.Reader, int, error) {
+	data := mf.buff.Bytes()
+	return bytes.NewReader(data), len(data), nil
 }
 
 func (mf *memorySegmentFile) delete() error {
@@ -100,13 +101,18 @@ func (pf *persistentSegmentFile) close() (err error) {
 	return nil
 }
 
-func (pf *persistentSegmentFile) get() (reader io.Reader, err error) {
+func (pf *persistentSegmentFile) get() (reader io.Reader, size int, err error) {
+	var finfo os.FileInfo
+	finfo, err = os.Stat(pf.path)
+	if err != nil {
+		return
+	}
 	var f *os.File
 	if f, err = os.Open(pf.path); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return f, nil
+	return f, int(finfo.Size()), nil
 }
 
 func (pf *persistentSegmentFile) delete() error {

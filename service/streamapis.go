@@ -12,6 +12,7 @@ import (
 	"github.com/cnotch/ipchub/network/websocket"
 	"github.com/cnotch/ipchub/provider/auth"
 	"github.com/cnotch/ipchub/service/flv"
+	"github.com/cnotch/ipchub/service/hls"
 	"github.com/cnotch/xlog"
 
 	"github.com/cnotch/apirouter"
@@ -66,10 +67,10 @@ func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
 	switch ext {
 	case ".flv":
 		flv.ConsumeByHTTP(s.logger, streamPath, r.RemoteAddr, w)
-	// case ".m3u8":
-	// 	hls.GetM3u8(s.logger, streamPath, r.RemoteAddr, w)
-	// case ".ts":
-	// 	hls.GetTS(s.logger, streamPath, r.RemoteAddr, w)
+	case ".m3u8":
+		hls.GetM3u8(s.logger, streamPath, r.RemoteAddr, w)
+	case ".ts":
+		hls.GetTS(s.logger, streamPath, r.RemoteAddr, w)
 	default:
 		s.logger.Warnf("request file ext is not supported: %s.", ext)
 		http.NotFound(w, r)

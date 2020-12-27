@@ -22,9 +22,10 @@ type Multicastable interface {
 
 // Hlsable 支持Hls访问
 type Hlsable interface {
-	WriteM3U8PlayListTo(w io.Writer) error
-	GetTS(seq int) ([]byte, error)
+	M3u8() ([]byte, error)
+	Segment(seq int) (io.Reader,int, error)
 	LastAccessTime() time.Time
+	Close() error
 }
 
 // Option 配置 Stream 的选项接口

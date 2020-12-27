@@ -16,7 +16,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/protos/mpegts"
 	"github.com/cnotch/ipchub/utils/murmur"
 	"github.com/cnotch/xlog"
@@ -27,6 +26,7 @@ const hlsSegmentMinDurationMs = 100
 
 // in ms, for HLS aac flush the audio
 const hlsAacDelay = 100
+const remainSegmets = 3
 
 // Muxer the HLS stream(m3u8 and ts files).
 type Muxer struct {
@@ -87,8 +87,8 @@ func (muxer *Muxer) segmentOpen(segmentStartDts int64) (err error) {
 	curr.segmentStartPts = segmentStartDts
 	curr.uri = "/streams" + muxer.path + "/" + strconv.Itoa(muxer.sequenceNo) + ".ts"
 
-	tsFileName := fmt.Sprintf("%d_%d.ts", murmur.OfString(muxer.path), muxer.current.sequenceNo)
-	tsFilePath := filepath.Join(config.HlsPath(), tsFileName)
+	tsFileName := fmt.Sprintf("%d_%d.ts", murmur.OfString(muxer.path), curr.sequenceNo)
+	tsFilePath := filepath.Join(muxer.segmentPath, tsFileName)
 	if err = curr.file.open(tsFilePath); err != nil {
 		return
 	}
@@ -152,7 +152,6 @@ func (muxer *Muxer) WriteMpegtsFrame(frame *mpegts.Frame) (err error) {
 
 func (muxer *Muxer) flushFrame(frame *mpegts.Frame) (err error) {
 	muxer.current.updateDuration(frame.Pts)
-
 	if err = muxer.current.file.writeFrame(frame); err != nil {
 		return
 	}
@@ -169,7 +168,7 @@ func (muxer *Muxer) segmentClose(muxerClosed bool) (err error) {
 	defer muxer.l.Unlock()
 
 	muxer.current.file.close()
-	remain := 3
+	remain := remainSegmets
 	if muxerClosed {
 		remain = 0
 	}
@@ -243,16 +242,16 @@ func (muxer *Muxer) isSegmentAbsolutelyOverflow() bool {
 }
 
 // M3u8 获取 m3u8 播放列表
-func (muxer *Muxer) M3u8() (string, error) {
+func (muxer *Muxer) M3u8() ([]byte, error) {
 	muxer.lastAccessTime = time.Now()
-	w := bytes.NewBuffer(make([]byte, 1024))
+	w := &bytes.Buffer{}
 
 	muxer.l.RLock()
 	defer muxer.l.RUnlock()
 	segments := muxer.segments
 
-	if len(segments) == 0 {
-		return "", errors.New("Playlist is empty,Maybe the HLS stream just started")
+	if len(segments) < remainSegmets {
+		return nil, errors.New("Playlist is not enough,Maybe the HLS stream just started")
 	}
 
 	seq := segments[0].sequenceNo
@@ -280,11 +279,11 @@ func (muxer *Muxer) M3u8() (string, error) {
 			seg.uri)
 	}
 
-	return string(w.Bytes()), nil
+	return w.Bytes(), nil
 }
 
 // Segment 获取 segment
-func (muxer *Muxer) Segment(seq int) (io.Reader, error) {
+func (muxer *Muxer) Segment(seq int) (io.Reader, int, error) {
 	muxer.lastAccessTime = time.Now()
 	muxer.l.RLock()
 	defer muxer.l.RUnlock()
@@ -294,7 +293,7 @@ func (muxer *Muxer) Segment(seq int) (io.Reader, error) {
 			return seg.file.get()
 		}
 	}
-	return nil, errors.New("Not found TSFile")
+	return nil, 0, errors.New("Not found TSFile")
 }
 
 // LastAccessTime 最后hls访问时间

@@ -14,6 +14,8 @@ import (
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/protos/flv"
+	"github.com/cnotch/ipchub/protos/hls"
+	"github.com/cnotch/ipchub/protos/mpegts"
 	"github.com/cnotch/ipchub/protos/rtp"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/ipchub/utils"
@@ -52,6 +54,8 @@ type Stream struct {
 	flvMuxer             flvMuxer
 	flvConsumptions      consumptions
 	flvCache             packCache
+	tsMuxer              *mpegts.MuxerAvcAac
+	hlsMuxer             *hls.Muxer
 	attrs                map[string]string // 流属性
 	multicast            Multicastable
 	hls                  Hlsable
@@ -120,6 +124,24 @@ func (s *Stream) prepareOtherStream() {
 		s.flvCache = emptyCache{}
 		s.flvMuxer = emptyFlvMuxer{}
 	}
+
+	// prepare av.Frame -> mpegts.Frame
+	if s.Video.Codec == "H264" {
+		hlsMuxer, err := hls.NewMuxer(s.path,
+			config.HlsFragment(),
+			config.HlsPath(),
+			s.logger.With(xlog.Fields(xlog.F("extra", "hls.Muxer"))))
+		if err != nil {
+			return
+		}
+		tsMuxer, err2 := mpegts.NewMuxerAvcAac(s.Video, s.Audio, hlsMuxer,
+			s.logger.With(xlog.Fields(xlog.F("extra", "ts.Muxer"))))
+		if err2 != nil {
+			return
+		}
+		s.tsMuxer = tsMuxer
+		s.hlsMuxer = hlsMuxer
+	}
 }
 
 // Path 流路径
@@ -157,6 +179,12 @@ func (s *Stream) close(status int32) error {
 	}
 	atomic.StoreInt32(&s.status, status)
 
+	// 关闭 hls
+	if s.hlsMuxer != nil {
+		s.tsMuxer.Close()
+		s.hlsMuxer.Close()
+	}
+
 	// 关闭 flv 消费者和 Muxer
 	s.flvConsumptions.RemoveAndCloseAll()
 	s.flvCache.Reset()
@@ -188,7 +216,15 @@ func (s *Stream) WritePacket(packet *rtp.Packet) error {
 
 // WriteFrame .
 func (s *Stream) WriteFrame(frame *av.Frame) error {
-	return s.flvMuxer.WriteFrame(frame)
+	if err := s.flvMuxer.WriteFrame(frame); err != nil {
+		s.logger.Error(err.Error())
+	}
+	if s.tsMuxer != nil {
+		if err := s.tsMuxer.WriteFrame(frame); err != nil {
+			s.logger.Error(err.Error())
+		}
+	}
+	return nil
 }
 
 // WriteTag .
@@ -210,7 +246,7 @@ func (s *Stream) Multicastable() Multicastable {
 
 // Hlsable 返回支持hls能力，不支持返回nil
 func (s *Stream) Hlsable() Hlsable {
-	return s.hls
+	return s.hlsMuxer
 }
 
 func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra string, useGopCache bool) CID {

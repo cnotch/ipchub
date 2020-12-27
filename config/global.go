@@ -177,7 +177,7 @@ func HlsEnable() bool {
 
 // HlsFragment TS片段时长（s）
 func HlsFragment() int {
-	return 3
+	return 6
 }
 
 // HlsPath hls 存储目录
