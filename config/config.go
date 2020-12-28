@@ -10,15 +10,16 @@ import (
 
 // config 服务配置
 type config struct {
-	ListenAddr string          `json:"listen"`               // 服务侦听地址和端口
-	Auth       bool            `json:"auth"`                 // 启用安全验证
-	CacheGop   bool            `json:"cache_gop"`            // 缓存图像组，以便提高播放端打开速度，但内存需求大
-	HlsPath    string          `json:"hlspath,omitempty"`    // Hls临时缓存目录
-	Profile    bool            `json:"profile"`              // 是否启动Profile
-	TLS        *TLSConfig      `json:"tls,omitempty"`        // https安全端口交互
-	Routetable *ProviderConfig `json:"routetable,omitempty"` // 路由表
-	Users      *ProviderConfig `json:"users,omitempty"`      // 用户
-	Log        LogConfig       `json:"log"`                  // 日志配置
+	ListenAddr  string          `json:"listen"`               // 服务侦听地址和端口
+	Auth        bool            `json:"auth"`                 // 启用安全验证
+	CacheGop    bool            `json:"cache_gop"`            // 缓存图像组，以便提高播放端打开速度，但内存需求大
+	HlsPath     string          `json:"hlspath"`              // Hls 临时缓存目录
+	HlsFragment int             `json:"hlsfragment"`          // Hls 分段时长，单位秒
+	Profile     bool            `json:"profile"`              // 是否启动Profile
+	TLS         *TLSConfig      `json:"tls,omitempty"`        // https安全端口交互
+	Routetable  *ProviderConfig `json:"routetable,omitempty"` // 路由表
+	Users       *ProviderConfig `json:"users,omitempty"`      // 用户
+	Log         LogConfig       `json:"log"`                  // 日志配置
 }
 
 func (c *config) initFlags() {
@@ -28,7 +29,8 @@ func (c *config) initFlags() {
 		"Determines if requires permission verification to access stream media")
 	flag.BoolVar(&c.CacheGop, "cachegop", false,
 		"Determines if Gop should be cached to memory")
-	flag.StringVar(&c.HlsPath, "hlspath", "", "Set HLS live dir")
+	flag.StringVar(&c.HlsPath, "hlspath", "", "Set HLS live cache path")
+	flag.IntVar(&c.HlsFragment, "hlsfragment", 5, "Set HLS segment duration")
 	flag.BoolVar(&c.Profile, "pprof", false,
 		"Determines if profile enabled")
 

@@ -177,7 +177,10 @@ func HlsEnable() bool {
 
 // HlsFragment TS片段时长（s）
 func HlsFragment() int {
-	return 6
+	if globalC == nil || globalC.HlsFragment < 5 {
+		return 5
+	}
+	return globalC.HlsFragment
 }
 
 // HlsPath hls 存储目录
