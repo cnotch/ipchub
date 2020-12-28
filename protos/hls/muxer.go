@@ -46,8 +46,8 @@ type Muxer struct {
 	lastAccessTime time.Time
 	logger         *xlog.Logger
 
-	audioCacheHeader *mpegts.Frame // audio frame cache
-	audioCacheTail   *mpegts.Frame
+	afCache     *mpegts.Frame // audio frame cache
+	afCacheBuff bytes.Buffer
 }
 
 // NewMuxer .
@@ -108,19 +108,17 @@ func (muxer *Muxer) WriteMpegtsFrame(frame *mpegts.Frame) (err error) {
 	}
 
 	if frame.IsAudio() {
-		if muxer.audioCacheHeader == nil {
-			muxer.audioCacheHeader = frame
-			muxer.audioCacheTail = frame
+		if muxer.afCache == nil {
+			headerFrame := *frame
+			muxer.afCache = &headerFrame
+			muxer.afCacheBuff.Write(frame.Payload)
 		} else {
-			muxer.audioCacheTail.Next = frame
-			muxer.audioCacheTail = frame
+			muxer.afCacheBuff.Write(frame.Header)
+			muxer.afCacheBuff.Write(frame.Payload)
 		}
 
-		if frame.Pts-muxer.audioCacheHeader.Pts > hlsAacDelay*90 {
-			err = muxer.flushFrame(muxer.audioCacheHeader)
-			muxer.audioCacheHeader = nil
-			muxer.audioCacheTail = nil
-			return err
+		if frame.Pts-muxer.afCache.Pts > hlsAacDelay*90 {
+			return muxer.flushAudioCache()
 		}
 
 		// reap when current source is pure audio.
@@ -147,6 +145,18 @@ func (muxer *Muxer) WriteMpegtsFrame(frame *mpegts.Frame) (err error) {
 	if err = muxer.flushFrame(frame); err != nil {
 		return
 	}
+	return
+}
+
+func (muxer *Muxer) flushAudioCache() (err error) {
+	if muxer.afCache == nil {
+		return
+	}
+
+	muxer.afCache.Payload = muxer.afCacheBuff.Bytes()
+	err = muxer.flushFrame(muxer.afCache)
+	muxer.afCache = nil
+	muxer.afCacheBuff.Reset()
 	return
 }
 
@@ -212,13 +222,7 @@ func (muxer *Muxer) reapSegment(segmentStartDts int64) (err error) {
 	// segment open, flush the audio.
 	// @see: ngx_rtmp_hls_open_fragment
 	/* start fragment with audio to make iPhone happy */
-	if muxer.audioCacheHeader != nil {
-		if err = muxer.flushFrame(muxer.audioCacheHeader); err != nil {
-			return
-		}
-		muxer.audioCacheHeader = nil
-		muxer.audioCacheTail = nil
-	}
+	err = muxer.flushAudioCache()
 
 	return
 }
@@ -303,11 +307,7 @@ func (muxer *Muxer) LastAccessTime() time.Time {
 
 // Close .
 func (muxer *Muxer) Close() error {
-	if muxer.audioCacheHeader != nil {
-		muxer.flushFrame(muxer.audioCacheHeader)
-		muxer.audioCacheHeader = nil
-		muxer.audioCacheTail = nil
-	}
+	muxer.flushAudioCache()
 
 	return muxer.segmentClose(true)
 }

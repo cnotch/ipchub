@@ -137,14 +137,6 @@ func (w *Writer) WriteMpegtsFrame(frame *Frame) (err error) {
 	buf.Write(frame.Header)
 	buf.Write(frame.Payload)
 
-	// 音频一包多帧处理
-	if frame.Pid == tsAudioPid {
-		for next := frame.Next; next != nil; next = next.Next {
-			buf.Write(next.Header)
-			buf.Write(next.Payload)
-		}
-	}
-
 	avdata := buf.Bytes()
 
 	last := len(avdata)
