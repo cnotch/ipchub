@@ -46,12 +46,15 @@ type Muxer struct {
 	lastAccessTime time.Time
 	logger         *xlog.Logger
 
+	audioRate   int
 	afCache     *mpegts.Frame // audio frame cache
 	afCacheBuff bytes.Buffer
+	// time jitter for aac
+	aacJitter *hlsAacJitter
 }
 
 // NewMuxer .
-func NewMuxer(path string, hlsFragment int, segmentPath string, logger *xlog.Logger) (*Muxer, error) {
+func NewMuxer(path string, hlsFragment int, segmentPath string, audioRate int, logger *xlog.Logger) (*Muxer, error) {
 	muxer := &Muxer{
 		path:           path,
 		hlsFragment:    hlsFragment,
@@ -60,6 +63,8 @@ func NewMuxer(path string, hlsFragment int, segmentPath string, logger *xlog.Log
 		logger:         logger,
 		lastAccessTime: time.Now(),
 		sequenceNo:     0,
+		audioRate:      audioRate,
+		aacJitter:      newHlsAacJitter(),
 	}
 
 	if err := muxer.segmentOpen(0); err != nil {
@@ -109,12 +114,16 @@ func (muxer *Muxer) WriteMpegtsFrame(frame *mpegts.Frame) (err error) {
 
 	if frame.IsAudio() {
 		if muxer.afCache == nil {
+			pts := muxer.aacJitter.onBufferStart(frame.Pts, muxer.audioRate)
 			headerFrame := *frame
+			headerFrame.Dts = pts
+			headerFrame.Pts = pts
 			muxer.afCache = &headerFrame
 			muxer.afCacheBuff.Write(frame.Payload)
 		} else {
 			muxer.afCacheBuff.Write(frame.Header)
 			muxer.afCacheBuff.Write(frame.Payload)
+			muxer.aacJitter.onBufferContinue()
 		}
 
 		if frame.Pts-muxer.afCache.Pts > hlsAacDelay*90 {

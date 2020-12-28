@@ -129,7 +129,7 @@ func (s *Stream) prepareOtherStream() {
 	if s.Video.Codec == "H264" {
 		hlsMuxer, err := hls.NewMuxer(s.path,
 			config.HlsFragment(),
-			config.HlsPath(),
+			config.HlsPath(), s.Audio.SampleRate,
 			s.logger.With(xlog.Fields(xlog.F("extra", "hls.Muxer"))))
 		if err != nil {
 			return
