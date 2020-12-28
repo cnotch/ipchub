@@ -1,5 +1,6 @@
 ## 1 系统API
-系统API无需登录，可以匿名访问
+系统API无需登录，可以匿名访问。
+
 ### 1.1 服务器信息查询
 GET /api/v1/server
 #### 1.1.1 参数和响应
@@ -23,7 +24,7 @@ duration | string | 持续时间 |
 #### 1.1.2 示例
 curl 示例：
 ``` shell
-curl http://locahost:1554/api/v1/server
+curl http://localhost:1554/api/v1/server
 ```
 
 响应：
@@ -31,7 +32,7 @@ curl http://locahost:1554/api/v1/server
 {
 	"vendor": "CAOHONGJU",
 	"name": "ipchub",
-	"version": "V0.8.0",
+	"version": "V1.0",
 	"os": "Darwin",
 	"arch": "AMD64",
 	"start_on": "2019-07-15T14:02:16.638804+08:00",
@@ -64,15 +65,12 @@ streams | object | 流信息 |
 streams.sc| number | 流媒体源数量 |
 streams.cc|number|流媒体消费者数量 |
 rtsp| object| RTSP连接信息 |
-rtsp.total|number|总链接数 |
-rtsp.active | number | 活跃连接数 |
-wsp| object| WSP连接信息 |
-wsp.total|number|总链接数 |
-wsp.active | number | 活跃连接数 |
+rtsp.total|number|累计总链接数 |
+rtsp.active | number | 当前活跃连接数 |
 flv| object| flv连接信息 |
-flv.total|number|总链接数 |
-flv.active | number | 活跃连接数 |
-extra | object | 额外信息 |
+flv.total|number|累计总链接数 |
+flv.active | number | 当前活跃连接数 |
+extra | object | 运行时内存等信息 |
 
 #### 1.2.1 示例
 curl 示例一：
@@ -94,10 +92,6 @@ curl http://localhost:1554/api/v1/runtime
 		"consumers": 0
 	},
 	"rtsp": {
-		"total": 0,
-		"active": 0
-	},
-	"wsp": {
 		"total": 0,
 		"active": 0
 	},
@@ -215,10 +209,8 @@ http://.../api/v1/streams/rtsp/room/door?token=your_access_token
 http://.../streams/room/door.flv?token=your_access_token
 + websocket-flv
 ws://.../ws/room/door.flv?token=your_access_token
-+ wps
-ws://.../ws/room/door?token=your_access_token
-+ rtmp
-rtmp://.../room/door?token=your_access_token
++ http-flv
+http://.../steams/room/door.m3u8?token=your_access_token
 
 ### 1.4 刷新access token
 GET  api/v1/refreshtoken?token={refresh_tokebn}

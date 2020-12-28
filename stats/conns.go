@@ -11,7 +11,6 @@ import (
 // 全局变量
 var (
 	RtspConns = NewConns() // RTSP连接统计
-	WspConns  = NewConns() // WSP连接统计
 	FlvConns  = NewConns() // flv连接统计
 )
 

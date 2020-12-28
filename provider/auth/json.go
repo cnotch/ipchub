@@ -53,7 +53,10 @@ func (p *jsonProvider) LoadAll() ([]*User, error) {
 	path := p.filePath
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return []*User{{
+				Name:     "admin",
+				Password: "admin",
+				Admin:    true}}, nil
 		}
 		return nil, err
 	}

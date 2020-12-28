@@ -122,15 +122,16 @@ func (s *Service) onLogin(w http.ResponseWriter, r *http.Request, pathParams api
 
 	// 提取凭证
 	var uc UserCredentials
-	err := json.NewDecoder(r.Body).Decode(&uc)
-	if err != nil {
-		// 尝试 Form解析
-		uc.Username = r.FormValue("username")
-		uc.Password = r.FormValue("password")
-		if len(uc.Username) == 0 || len(uc.Password) == 0 {
-			http.Error(w, "用户名或密码错误", http.StatusForbidden)
-			return
-		}
+
+	if err := json.NewDecoder(r.Body).Decode(&uc); err != nil {
+		http.Error(w, "未提供用户名或密码", http.StatusForbidden)
+		return
+	}
+
+	// 尝试 Form解析
+	if len(uc.Username) == 0 || len(uc.Password) == 0 {
+		http.Error(w, "用户名或密码错误", http.StatusForbidden)
+		return
 	}
 
 	// 验证用户和密码
@@ -187,7 +188,6 @@ func (s *Service) onGetRuntime(w http.ResponseWriter, r *http.Request, pathParam
 		Proc    stats.Proc        `json:"proc"`
 		Streams sccc              `json:"streams"`
 		Rtsp    stats.ConnsSample `json:"rtsp"`
-		Wsp     stats.ConnsSample `json:"wsp"`
 		Flv     stats.ConnsSample `json:"flv"`
 		Extra   *stats.Runtime    `json:"extra,omitempty"`
 	}
@@ -198,7 +198,6 @@ func (s *Service) onGetRuntime(w http.ResponseWriter, r *http.Request, pathParam
 		Proc:    stats.MeasureRuntime(),
 		Streams: sccc{sc, cc},
 		Rtsp:    stats.RtspConns.GetSample(),
-		Wsp:     stats.WspConns.GetSample(),
 		Flv:     stats.FlvConns.GetSample(),
 	}
 
