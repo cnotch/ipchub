@@ -261,7 +261,7 @@ var m3u8Pool = sync.Pool{
 }
 
 // M3u8 获取 m3u8 播放列表
-func (muxer *Muxer) M3u8() ([]byte, error) {
+func (muxer *Muxer) M3u8(token string) ([]byte, error) {
 	muxer.lastAccessTime = time.Now()
 	w := m3u8Pool.Get().(*bytes.Buffer)
 	w.Reset()
@@ -295,9 +295,15 @@ func (muxer *Muxer) M3u8() ([]byte, error) {
 			fmt.Fprint(w, "#EXT-X-DISCONTINUITY\n")
 		}
 
-		fmt.Fprintf(w, "#EXTINF:%.3f,\n%s\n",
-			seg.duration,
-			seg.uri)
+		if len(token) > 0 {
+			fmt.Fprintf(w, "#EXTINF:%.3f,\n%s?token=%s\n",
+				seg.duration,
+				seg.uri, token)
+		} else {
+			fmt.Fprintf(w, "#EXTINF:%.3f,\n%s\n",
+				seg.duration,
+				seg.uri)
+		}
 	}
 
 	return w.Bytes(), nil

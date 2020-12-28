@@ -22,7 +22,7 @@ type Multicastable interface {
 
 // Hlsable 支持Hls访问
 type Hlsable interface {
-	M3u8() ([]byte, error)
+	M3u8(token string) ([]byte, error)
 	Segment(seq int) (io.Reader,int, error)
 	LastAccessTime() time.Time
 	Close() error

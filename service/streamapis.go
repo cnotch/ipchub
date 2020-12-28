@@ -62,7 +62,8 @@ func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
 	case ".flv":
 		flv.ConsumeByHTTP(s.logger, streamPath, r.RemoteAddr, w)
 	case ".m3u8":
-		hls.GetM3u8(s.logger, streamPath, r.RemoteAddr, w)
+		token := r.URL.Query().Get("token")
+		hls.GetM3u8(s.logger, streamPath, token, r.RemoteAddr, w)
 	case ".ts":
 		hls.GetTS(s.logger, streamPath, r.RemoteAddr, w)
 	default:
