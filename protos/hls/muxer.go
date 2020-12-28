@@ -254,10 +254,18 @@ func (muxer *Muxer) isSegmentAbsolutelyOverflow() bool {
 	return res
 }
 
+var m3u8Pool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 512))
+	},
+}
+
 // M3u8 获取 m3u8 播放列表
 func (muxer *Muxer) M3u8() ([]byte, error) {
 	muxer.lastAccessTime = time.Now()
-	w := &bytes.Buffer{}
+	w := m3u8Pool.Get().(*bytes.Buffer)
+	w.Reset()
+	defer m3u8Pool.Put(w)
 
 	muxer.l.RLock()
 	defer muxer.l.RUnlock()

@@ -25,19 +25,19 @@ type segmentFile interface {
 }
 
 type memorySegmentFile struct {
-	buff *bytes.Buffer
+	file *bytes.Buffer
 	w    mpegts.FrameWriter
 }
 
 func newMemorySegmentFile() segmentFile {
 	return &memorySegmentFile{
-		buff: bytes.NewBuffer(nil),
+		file: bytes.NewBuffer(nil),
 	}
 }
 
 func (mf *memorySegmentFile) open(path string) (err error) {
-	mf.buff.Reset()
-	mf.w, err = mpegts.NewWriter(mf.buff)
+	mf.file.Reset()
+	mf.w, err = mpegts.NewWriter(mf.file)
 	return
 }
 
@@ -51,7 +51,7 @@ func (mf *memorySegmentFile) close() (err error) {
 }
 
 func (mf *memorySegmentFile) get() (io.Reader, int, error) {
-	data := mf.buff.Bytes()
+	data := mf.file.Bytes()
 	return bytes.NewReader(data), len(data), nil
 }
 
@@ -116,5 +116,6 @@ func (pf *persistentSegmentFile) get() (reader io.Reader, size int, err error) {
 }
 
 func (pf *persistentSegmentFile) delete() error {
+	pf.close()
 	return os.Remove(pf.path)
 }
