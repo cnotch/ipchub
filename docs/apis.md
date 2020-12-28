@@ -183,8 +183,8 @@ password | string | 密码 |
 
 项目 | 类型 |  说明及示例  
 -|-|-
-access_token | string | 访问令牌|
-refresh_token | string | 刷新令牌 |
+access_token | string | 访问令牌(有效期 2 小时)|
+refresh_token | string | 刷新令牌(有效期 7 小时) |
 
 #### 1.3.2 示例
 curl 示例：
