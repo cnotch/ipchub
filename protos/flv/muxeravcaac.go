@@ -29,8 +29,8 @@ type MuxerAvcAac struct {
 	tagWriter         TagWriter
 	closed            bool
 	spsMuxed          bool
-	baseNtp           int64
-	baseTs            int64
+	basePts           int64
+	baseDts           int64
 	logger            *xlog.Logger // 日志对象
 }
 
@@ -43,7 +43,7 @@ func NewMuxerAvcAac(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter Ta
 		typeFlags: byte(TypeFlagsVideo),
 		tagWriter: tagWriter,
 		closed:    false,
-		baseTs:    time.Now().UnixNano() / int64(time.Millisecond),
+		baseDts:   time.Now().UnixNano() / int64(time.Millisecond),
 		logger:    logger,
 	}
 
@@ -105,8 +105,8 @@ func (muxer *MuxerAvcAac) process() {
 		}
 
 		frame := f.(*av.Frame)
-		if muxer.baseNtp == 0 {
-			muxer.baseNtp = frame.AbsTimestamp
+		if muxer.basePts == 0 {
+			muxer.basePts = frame.AbsTimestamp
 		}
 
 		if frame.FrameType == av.FrameVideo {
@@ -136,8 +136,8 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) error {
 		return muxer.muxSequenceHeaderTag()
 	}
 
-	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseTs
-	pts := frame.AbsTimestamp - muxer.baseNtp + ptsDelay
+	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseDts
+	pts := frame.AbsTimestamp - muxer.basePts + ptsDelay
 	if dts > pts {
 		pts = dts
 	}
@@ -174,7 +174,7 @@ func (muxer *MuxerAvcAac) muxAudioTag(frame *av.Frame) error {
 	tag := &Tag{
 		TagType:   TagTypeAudio,
 		DataSize:  uint32(len(data)),
-		Timestamp: uint32(frame.AbsTimestamp-muxer.baseNtp) + ptsDelay,
+		Timestamp: uint32(frame.AbsTimestamp-muxer.basePts) + ptsDelay,
 		StreamID:  0,
 		Data:      data,
 	}
