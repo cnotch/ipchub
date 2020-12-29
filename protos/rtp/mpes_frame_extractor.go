@@ -14,8 +14,7 @@ type mpesFrameExtractor struct {
 	sizeLength  int
 	indexLength int
 	// extractFunc func(packet *Packet) error
-	syncClock   SyncClock
-	rtpTimeUnit int
+	syncClock SyncClock
 }
 
 // NewMPESFrameExtractor 实例化 MPES 帧提取器
@@ -24,8 +23,8 @@ func NewMPESFrameExtractor(w av.FrameWriter, rtpTimeUnit int) FrameExtractor {
 		w:           w,
 		sizeLength:  13,
 		indexLength: 3,
-		rtpTimeUnit: rtpTimeUnit,
 	}
+	fe.syncClock.RTPTimeUnit = 1000.0 / float64(rtpTimeUnit)
 	return fe
 }
 
@@ -128,5 +127,5 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 }
 
 func (fe *mpesFrameExtractor) rtp2ntp(timestamp uint32) int64 {
-	return fe.syncClock.Rtp2Ntp(timestamp, fe.rtpTimeUnit)
+	return fe.syncClock.Rtp2Ntp(timestamp)
 }

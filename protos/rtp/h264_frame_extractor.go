@@ -12,19 +12,19 @@ import (
 )
 
 type h264FrameExtractor struct {
-	fragments   []*Packet // 分片包
-	w           av.FrameWriter
-	syncClock   SyncClock
-	rtpTimeUnit int
+	fragments []*Packet // 分片包
+	w         av.FrameWriter
+	syncClock SyncClock
 }
 
 // NewH264FrameExtractor 实例化 H264 帧提取器
 func NewH264FrameExtractor(w av.FrameWriter) FrameExtractor {
-	return &h264FrameExtractor{
-		fragments:   make([]*Packet, 0, 16),
-		w:           w,
-		rtpTimeUnit: 90000,
+	fe := &h264FrameExtractor{
+		fragments: make([]*Packet, 0, 16),
+		w:         w,
 	}
+	fe.syncClock.RTPTimeUnit = 1000.0 / 90000
+	return fe
 }
 
 func (fe *h264FrameExtractor) Control(p *Packet) error {
@@ -197,5 +197,5 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 }
 
 func (fe *h264FrameExtractor) rtp2ntp(timestamp uint32) int64 {
-	return fe.syncClock.Rtp2Ntp(timestamp, fe.rtpTimeUnit)
+	return fe.syncClock.Rtp2Ntp(timestamp)
 }
