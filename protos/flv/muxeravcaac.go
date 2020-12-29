@@ -18,7 +18,7 @@ import (
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 // 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
 const (
-	dtsDelay = 200
+	dtsDelay = 0
 	ptsDelay = 1000
 )
 

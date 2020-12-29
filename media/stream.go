@@ -180,9 +180,8 @@ func (s *Stream) close(status int32) error {
 	atomic.StoreInt32(&s.status, status)
 
 	// 关闭 hls
-	if s.hlsMuxer != nil {
+	if s.tsMuxer != nil {
 		s.tsMuxer.Close()
-		s.hlsMuxer.Close()
 	}
 
 	// 关闭 flv 消费者和 Muxer

@@ -6,6 +6,7 @@ package mpegts
 
 import (
 	"fmt"
+	"io"
 	"runtime/debug"
 
 	"github.com/cnotch/ipchub/av"
@@ -18,7 +19,7 @@ import (
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 // 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
 const (
-	dtsDelay = 200
+	dtsDelay = 0
 	ptsDelay = 1000
 )
 
@@ -111,6 +112,9 @@ func (muxer *MuxerAvcAac) process() {
 
 		// 尽早通知GC，回收内存
 		muxer.recvQueue.Reset()
+		if closer, ok := muxer.tsframeWriter.(io.Closer); ok {
+			closer.Close()
+		}
 	}()
 
 	for !muxer.closed {

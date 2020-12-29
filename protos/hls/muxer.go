@@ -182,11 +182,11 @@ func (muxer *Muxer) segmentClose(muxerClosed bool) (err error) {
 	if nil == muxer.current {
 		return
 	}
+	muxer.current.file.close()
 
 	muxer.l.Lock()
 	defer muxer.l.Unlock()
 
-	muxer.current.file.close()
 	remain := hlsRemainSegments
 	if muxerClosed {
 		remain = 0
