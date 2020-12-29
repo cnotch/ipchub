@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	"github.com/cnotch/ipchub/protos/mpegts"
 )
@@ -24,18 +25,23 @@ type segmentFile interface {
 	delete() error
 }
 
+var segmentPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(make([]byte, 0, 512*1024))
+	},
+}
+
 type memorySegmentFile struct {
 	file *bytes.Buffer
 	w    mpegts.FrameWriter
 }
 
 func newMemorySegmentFile() segmentFile {
-	return &memorySegmentFile{
-		file: bytes.NewBuffer(nil),
-	}
+	return &memorySegmentFile{}
 }
 
 func (mf *memorySegmentFile) open(path string) (err error) {
+	mf.file = segmentPool.Get().(*bytes.Buffer)
 	mf.file.Reset()
 	mf.w, err = mpegts.NewWriter(mf.file)
 	return
@@ -56,6 +62,10 @@ func (mf *memorySegmentFile) get() (io.Reader, int, error) {
 }
 
 func (mf *memorySegmentFile) delete() error {
+	if mf.file != nil {
+		segmentPool.Put(mf.file)
+		mf.file = nil
+	}
 	return nil
 }
 
