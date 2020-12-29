@@ -7,7 +7,6 @@ package mpegts
 import (
 	"fmt"
 	"runtime/debug"
-	"time"
 
 	"github.com/cnotch/ipchub/av"
 	"github.com/cnotch/ipchub/av/aac"
@@ -18,7 +17,10 @@ import (
 
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 // 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
-const ptsDelay = 1000
+const (
+	dtsDelay = 0
+	ptsDelay = 1000
+)
 
 // MuxerAvcAac flv muxer from av.Frame(H264[+AAC])
 type MuxerAvcAac struct {
@@ -30,7 +32,8 @@ type MuxerAvcAac struct {
 	tsframeWriter FrameWriter
 	closed        bool
 	basePts       int64
-	baseDts       int64
+	nextDts       float64
+	dtsStep       float64
 	logger        *xlog.Logger // 日志对象
 }
 
@@ -43,9 +46,14 @@ func NewMuxerAvcAac(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tsframeWrite
 		hasAudio:      audioMeta.Codec == "AAC",
 		tsframeWriter: tsframeWriter,
 		closed:        false,
-		baseDts:       time.Now().UnixNano() / int64(time.Millisecond),
+		nextDts:       dtsDelay,
 		logger:        logger,
 	}
+
+	if videoMeta.FrameRate > 0 {
+		muxer.dtsStep = 1000.0 / videoMeta.FrameRate
+	}
+
 	if muxer.hasAudio {
 		if err := muxer.prepareAacSps(); err != nil {
 			return nil, err
@@ -136,6 +144,16 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) (err error) {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
 		}
+		var rawSps h264.RawSPS
+		err = rawSps.Decode(muxer.videoMeta.Sps)
+		if err != nil {
+			return
+		}
+
+		muxer.videoMeta.Width = rawSps.Width()
+		muxer.videoMeta.Height = rawSps.Height()
+		muxer.videoMeta.FrameRate = rawSps.FrameRate()
+		muxer.dtsStep = 1000.0 / muxer.videoMeta.FrameRate
 		return
 	}
 
@@ -146,7 +164,8 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) (err error) {
 		return
 	}
 
-	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseDts
+	dts := int64(muxer.nextDts)
+	muxer.nextDts += muxer.dtsStep
 	pts := frame.AbsTimestamp - muxer.basePts + ptsDelay
 	if dts > pts {
 		pts = dts

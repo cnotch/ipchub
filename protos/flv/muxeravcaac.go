@@ -17,7 +17,10 @@ import (
 
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 // 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
-const ptsDelay = 1000
+const (
+	dtsDelay = 0
+	ptsDelay = 1000
+)
 
 // MuxerAvcAac flv muxer from av.Frame(H264[+AAC])
 type MuxerAvcAac struct {
@@ -30,7 +33,8 @@ type MuxerAvcAac struct {
 	closed            bool
 	spsMuxed          bool
 	basePts           int64
-	baseDts           int64
+	nextDts           float64
+	dtsStep           float64
 	logger            *xlog.Logger // 日志对象
 }
 
@@ -43,10 +47,13 @@ func NewMuxerAvcAac(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter Ta
 		typeFlags: byte(TypeFlagsVideo),
 		tagWriter: tagWriter,
 		closed:    false,
-		baseDts:   time.Now().UnixNano() / int64(time.Millisecond),
+		nextDts:   dtsDelay,
 		logger:    logger,
 	}
 
+	if videoMeta.FrameRate > 0 {
+		muxer.dtsStep = 1000.0 / videoMeta.FrameRate
+	}
 	if audioMeta.Codec == "AAC" {
 		muxer.typeFlags |= TypeFlagsAudio
 		muxer.prepareTemplate()
@@ -125,6 +132,16 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) error {
 	if frame.Payload[0]&0x1F == h264.NalSps {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
+			var rawSps h264.RawSPS
+			err := rawSps.Decode(muxer.videoMeta.Sps)
+			if err != nil {
+				return err
+			}
+
+			muxer.videoMeta.Width = rawSps.Width()
+			muxer.videoMeta.Height = rawSps.Height()
+			muxer.videoMeta.FrameRate = rawSps.FrameRate()
+			muxer.dtsStep = 1000.0 / muxer.videoMeta.FrameRate
 		}
 		return muxer.muxSequenceHeaderTag()
 	}
@@ -136,7 +153,8 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) error {
 		return muxer.muxSequenceHeaderTag()
 	}
 
-	dts := time.Now().UnixNano()/int64(time.Millisecond) - muxer.baseDts
+	dts := int64(muxer.nextDts)
+	muxer.nextDts += muxer.dtsStep
 	pts := frame.AbsTimestamp - muxer.basePts + ptsDelay
 	if dts > pts {
 		pts = dts
