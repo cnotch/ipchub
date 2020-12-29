@@ -21,7 +21,6 @@
     + Websocket-FLV
     + HTTP-HLS
     + Websocket-RTSP（实验）: 实时性更好
-+ 支持级联部署服务器，自动拉取流
 + 支持流媒体推拉的用户权限管理
 + 业务系统集成 RestfulAPI
 
