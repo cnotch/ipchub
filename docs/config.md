@@ -4,7 +4,8 @@
 listen | 侦听地址，":1554" | 默认：":1554" |
 auth | 访问流媒体时，是否启用身份和权限验证 |默认：false |
 cache_gop | 是否缓存GOP，缓存GOP会提高打开速度|默认：false |
-hlspath | hls临时文件存储目录，不设置则在内存存储|默认：空字串 |
+hlsfragment | hls 分段大小（单位秒）| 默认：10 |
+hlspath | hls临时文件存储目录，不设置则在内存存储|默认：空字串，使用内存文件 |
 profile | 是否启动在线诊断|默认：false |
 tls | 安全连接配置 |如果需要http范围，设置该配置向 |
 routetable | 路由表提供者 | 默认：json|
