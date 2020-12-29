@@ -215,7 +215,6 @@ func (s *Session) asTCPPusher() {
 	media.Regist(pusher.stream)
 	// 设置Session字段
 	s.stream = pusher
-	s.logger.Infof("specify session type")
 }
 
 func (s *Session) asTCPConsumer(stream *media.Stream, resp *Response) (err error) {
@@ -245,7 +244,6 @@ func (s *Session) asTCPConsumer(stream *media.Stream, resp *Response) (err error
 	} else {
 		c.cid = stream.StartConsume(s, media.RTPPacket, "net=rtsp-tcp")
 	}
-	s.logger.Infof("specify session type")
 	return
 }
 
@@ -278,7 +276,6 @@ func (s *Session) asUDPConsumer(stream *media.Stream, resp *Response) (err error
 	s.consumer = c
 
 	c.cid = stream.StartConsume(s, media.RTPPacket, "net=rtsp-udp")
-	s.logger.Infof("specify session type")
 	return nil
 }
 
@@ -309,6 +306,5 @@ func (s *Session) asMulticastConsumer(stream *media.Stream, resp *Response) (err
 	s.consumer = c
 
 	ma.AddMember(s)
-	s.logger.Infof("specify session type")
 	return nil
 }

@@ -16,7 +16,7 @@ import (
 )
 
 // GetM3u8 .
-func GetM3u8(logger *xlog.Logger, path string,token string, addr string, w http.ResponseWriter) {
+func GetM3u8(logger *xlog.Logger, path string, token string, addr string, w http.ResponseWriter) {
 	// 需要手动启动,如果需要转换或拉流，很耗时
 	var c media.Hlsable
 	s := media.GetOrCreate(path)
@@ -54,6 +54,10 @@ func GetM3u8(logger *xlog.Logger, path string,token string, addr string, w http.
 	w.Header().Set("Content-Type", "application/x-mpegURL")
 	w.Header().Set("Content-Length", strconv.Itoa(len(cont)))
 	w.Write(cont)
+
+	if logger.LevelEnabled(xlog.DebugLevel) {
+		logger.Debugf("m3u8 ===>>>\r\n%s", string(cont))
+	}
 }
 
 // GetTS .

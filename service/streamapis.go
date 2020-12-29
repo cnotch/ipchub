@@ -53,7 +53,7 @@ func (s *Service) onWebSocketRequest(w http.ResponseWriter, r *http.Request) {
 func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
 	// 获取文件后缀和流路径
 	streamPath, ext := extractStreamPathAndExt(r.URL.Path)
-	s.logger.Debug("http access stream media.",
+	s.logger.Info("http access stream media.",
 		xlog.F("path", streamPath),
 		xlog.F("ext", ext))
 
