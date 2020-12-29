@@ -26,7 +26,7 @@ const hlsSegmentMinDurationMs = 100
 
 // in ms, for HLS aac flush the audio
 const hlsAacDelay = 100
-const remainSegmets = 3
+const hlsRemainSegments = 3
 
 // Muxer the HLS stream(m3u8 and ts files).
 type Muxer struct {
@@ -187,7 +187,7 @@ func (muxer *Muxer) segmentClose(muxerClosed bool) (err error) {
 	defer muxer.l.Unlock()
 
 	muxer.current.file.close()
-	remain := remainSegmets
+	remain := hlsRemainSegments
 	if muxerClosed {
 		remain = 0
 	}
@@ -205,6 +205,16 @@ func (muxer *Muxer) segmentClose(muxerClosed bool) (err error) {
 	// 仅保留3个
 	if len(muxer.segments) > remain {
 		for i := 0; i < len(muxer.segments)-remain; i++ {
+			// // 可以考虑异步删除
+			// if muxerClosed {
+			// 	muxer.segments[i].file.delete()
+			// } else {
+			// 	file := muxer.segments[i].file
+			// 	delay := time.Duration(2*muxer.hlsFragment) * time.Second
+			// 	scheduler.AfterFunc(delay, func() {
+			// 		file.delete()
+			// 	}, "hls segment file delay(1.5*hlsFragment).")
+			// }
 			muxer.segments[i].file.delete()
 			muxer.segments[i] = nil
 		}
@@ -271,8 +281,8 @@ func (muxer *Muxer) M3u8(token string) ([]byte, error) {
 	defer muxer.l.RUnlock()
 	segments := muxer.segments
 
-	if len(segments) < remainSegmets {
-		return nil, errors.New("Playlist is not enough,Maybe the HLS stream just started")
+	if len(segments) < hlsRemainSegments {
+		return nil, errors.New("playlist is not enough,maybe the HLS stream just started")
 	}
 
 	seq := segments[0].sequenceNo
