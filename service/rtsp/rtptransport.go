@@ -100,25 +100,25 @@ func (t *RTPTransport) ParseTransport(rtpType int, ts string) (err error) {
 	}
 
 	// 扫描参数
-	tailing := ts
-	substr := ""
+	advance := ts
+	token := ""
 	continueScan := true
 	for continueScan {
-		tailing, substr, continueScan = scan.Semicolon.Scan(tailing)
-		if substr == "unicast" && t.Type == RTPMulticast {
+		advance, token, continueScan = scan.Semicolon.Scan(advance)
+		if token == "unicast" && t.Type == RTPMulticast {
 			t.Type = RTPUDPUnicast
 			continue
 		}
-		if substr == "multicast" && t.Type == RTPTCPUnicast {
+		if token == "multicast" && t.Type == RTPTCPUnicast {
 			err = errors.New("malformed trannsport")
 			continue
 		}
-		if substr == "append" {
+		if token == "append" {
 			t.Append = true
 			continue
 		}
 
-		k, v, _ := scan.EqualPair.Scan(substr)
+		k, v, _ := scan.EqualPair.Scan(token)
 		switch k {
 		case "mode":
 			if v == "record" {

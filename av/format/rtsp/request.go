@@ -208,12 +208,12 @@ func (req *Request) DigestAuth() (username, response string, ok bool) {
 
 	auth = auth[len(digestAuthPrefix):]
 
-	tailing := auth
-	substr := ""
+	advance := auth
+	token := ""
 	continueScan := true
 	for continueScan {
-		tailing, substr, continueScan = scan.Comma.Scan(tailing)
-		k, v, _ := scan.EqualPair.Scan(substr)
+		advance, token, continueScan = scan.Comma.Scan(advance)
+		k, v, _ := scan.EqualPair.Scan(token)
 		switch k {
 		case "username":
 			username = v

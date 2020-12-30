@@ -109,7 +109,7 @@ func permissionInterceptor(w http.ResponseWriter, r *http.Request) bool {
 // 提取请求路径中的流path和格式后缀
 func extractStreamPathAndExt(requestPath string) (streamPath, ext string) {
 	ext = path.Ext(requestPath)
-	_, substr, _ := scan.NewScanner('/', nil).Scan(requestPath[1:])
-	streamPath = requestPath[1+len(substr) : len(requestPath)-len(ext)]
+	_, token, _ := scan.NewScanner('/', nil).Scan(requestPath[1:])
+	streamPath = requestPath[1+len(token) : len(requestPath)-len(ext)]
 	return
 }

@@ -253,12 +253,12 @@ func (resp *Response) BasicAuth() (realm string, ok bool) {
 
 	auth = auth[len(basicAuthPrefix):]
 
-	tailing := auth
-	substr := ""
+	advance := auth
+	token := ""
 	continueScan := true
 	for continueScan {
-		tailing, substr, continueScan = scan.Comma.Scan(tailing)
-		k, v, _ := scan.EqualPair.Scan(substr)
+		advance, token, continueScan = scan.Comma.Scan(advance)
+		k, v, _ := scan.EqualPair.Scan(token)
 		switch k {
 		case "realm":
 			realm = v
@@ -288,12 +288,12 @@ func (resp *Response) DigestAuth() (realm, nonce string, ok bool) {
 	}
 
 	auth = auth[len(digestAuthPrefix):]
-	tailing := auth
-	substr := ""
+	advance := auth
+	token := ""
 	continueScan := true
 	for continueScan {
-		tailing, substr, continueScan = scan.Comma.Scan(tailing)
-		k, v, _ := scan.EqualPair.Scan(substr)
+		advance, token, continueScan = scan.Comma.Scan(advance)
+		k, v, _ := scan.EqualPair.Scan(token)
 		switch k {
 		case "realm":
 			realm = v
