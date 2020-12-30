@@ -2,6 +2,9 @@
 *.o
 *.a
 *.so
+*.mp4
+*.flv
+*.ts
 
 # Folders
 _obj
