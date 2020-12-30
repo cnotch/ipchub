@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/cnotch/ipchub/media"
 	"github.com/cnotch/ipchub/av/format/flv"
+	"github.com/cnotch/ipchub/media"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/xlog"
 )
@@ -80,6 +80,9 @@ func ConsumeByHTTP(logger *xlog.Logger, path string, addr string, w http.Respons
 
 	logger.Info("http-flv: start http-flv consume")
 	stats.FlvConns.Add()
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "video/x-flv")
 
 	// 启动 pack 消费,必须 StartConsume 前写入 Header
 	flvWriter, err := flv.NewWriter(w, typeFlags)
