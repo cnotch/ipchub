@@ -4,7 +4,7 @@
 
 package cache
 
-import "github.com/cnotch/ipchub/protos"
+import "github.com/cnotch/ipchub/av/format"
 
 // Pack .
-type Pack = protos.Pack
+type Pack = format.Package

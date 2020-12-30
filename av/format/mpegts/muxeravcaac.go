@@ -9,9 +9,9 @@ import (
 	"io"
 	"runtime/debug"
 
-	"github.com/cnotch/ipchub/av"
-	"github.com/cnotch/ipchub/av/aac"
-	"github.com/cnotch/ipchub/av/h264"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/codec/aac"
+	"github.com/cnotch/ipchub/av/codec/h264"
 	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
 )
@@ -25,8 +25,8 @@ const (
 
 // MuxerAvcAac flv muxer from av.Frame(H264[+AAC])
 type MuxerAvcAac struct {
-	videoMeta     av.VideoMeta
-	audioMeta     av.AudioMeta
+	videoMeta     codec.VideoMeta
+	audioMeta     codec.AudioMeta
 	hasAudio      bool
 	audioSps      aac.RawSPS
 	recvQueue     *queue.SyncQueue
@@ -39,7 +39,7 @@ type MuxerAvcAac struct {
 }
 
 // NewMuxerAvcAac .
-func NewMuxerAvcAac(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tsframeWriter FrameWriter, logger *xlog.Logger) (*MuxerAvcAac, error) {
+func NewMuxerAvcAac(videoMeta codec.VideoMeta, audioMeta codec.AudioMeta, tsframeWriter FrameWriter, logger *xlog.Logger) (*MuxerAvcAac, error) {
 	muxer := &MuxerAvcAac{
 		recvQueue:     queue.NewSyncQueue(),
 		videoMeta:     videoMeta,
@@ -84,7 +84,7 @@ func (muxer *MuxerAvcAac) prepareAacSps() (err error) {
 }
 
 // WriteFrame .
-func (muxer *MuxerAvcAac) WriteFrame(frame *av.Frame) error {
+func (muxer *MuxerAvcAac) WriteFrame(frame *codec.Frame) error {
 	muxer.recvQueue.Push(frame)
 	return nil
 }
@@ -126,12 +126,12 @@ func (muxer *MuxerAvcAac) process() {
 			continue
 		}
 
-		frame := f.(*av.Frame)
+		frame := f.(*codec.Frame)
 		if muxer.basePts == 0 {
 			muxer.basePts = frame.AbsTimestamp
 		}
 
-		if frame.FrameType == av.FrameVideo {
+		if frame.FrameType == codec.FrameVideo {
 			if err := muxer.muxVideoTag(frame); err != nil {
 				muxer.logger.Errorf("tsmuxer: muxVideoFrame error - %s", err.Error())
 			}
@@ -143,7 +143,7 @@ func (muxer *MuxerAvcAac) process() {
 	}
 }
 
-func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) (err error) {
+func (muxer *MuxerAvcAac) muxVideoTag(frame *codec.Frame) (err error) {
 	if frame.Payload[0]&0x1F == h264.NalSps {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
@@ -190,7 +190,7 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) (err error) {
 	return muxer.tsframeWriter.WriteMpegtsFrame(tsframe)
 }
 
-func (muxer *MuxerAvcAac) muxAudioTag(frame *av.Frame) error {
+func (muxer *MuxerAvcAac) muxAudioTag(frame *codec.Frame) error {
 	pts := frame.AbsTimestamp - muxer.basePts + ptsDelay
 	pts *= 90
 

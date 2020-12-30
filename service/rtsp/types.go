@@ -5,13 +5,13 @@
 package rtsp
 
 import (
-	"github.com/cnotch/ipchub/protos"
-	"github.com/cnotch/ipchub/protos/rtp"
-	"github.com/cnotch/ipchub/protos/rtsp"
+	"github.com/cnotch/ipchub/av/format"
+	"github.com/cnotch/ipchub/av/format/rtp"
+	"github.com/cnotch/ipchub/av/format/rtsp"
 )
 
 // Pack .
-type Pack = protos.Pack
+type Pack = format.Package
 
 // .
 var (

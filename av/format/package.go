@@ -2,9 +2,9 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package protos
+package format
 
-// Pack 表示流媒体包
-type Pack interface {
+// Package 表示流媒体包
+type Package interface {
 	Size() int // 包长度
 }

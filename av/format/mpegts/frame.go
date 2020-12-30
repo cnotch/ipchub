@@ -7,8 +7,8 @@
 package mpegts
 
 import (
-	"github.com/cnotch/ipchub/av/aac"
-	"github.com/cnotch/ipchub/av/h264"
+	"github.com/cnotch/ipchub/av/codec/aac"
+	"github.com/cnotch/ipchub/av/codec/h264"
 )
 
 // the mpegts header specifed the video/audio pid.

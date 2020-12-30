@@ -7,14 +7,14 @@ package media
 import (
 	"io"
 
-	"github.com/cnotch/ipchub/av"
-	"github.com/cnotch/ipchub/protos"
-	"github.com/cnotch/ipchub/protos/rtp"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/format"
+	"github.com/cnotch/ipchub/av/format/rtp"
 	"github.com/cnotch/queue"
 )
 
 // Pack .
-type Pack = protos.Pack
+type Pack = format.Package
 
 type packCache interface {
 	CachePack(pack Pack)
@@ -33,7 +33,7 @@ func (emptyCache) Reset()                        {}
 
 type flvMuxer interface {
 	TypeFlags() byte
-	av.FrameWriter
+	codec.FrameWriter
 	io.Closer
 }
 
@@ -42,7 +42,7 @@ var _ flvMuxer = emptyFlvMuxer{}
 type emptyFlvMuxer struct{}
 
 func (emptyFlvMuxer) TypeFlags() byte                  { return 0 }
-func (emptyFlvMuxer) WriteFrame(frame *av.Frame) error { return nil }
+func (emptyFlvMuxer) WriteFrame(frame *codec.Frame) error { return nil }
 func (emptyFlvMuxer) Close() error                     { return nil }
 
 type frameConverter interface {
@@ -55,5 +55,5 @@ var _ frameConverter = emptyFrameConverter{}
 type emptyFrameConverter struct{}
 
 func (emptyFrameConverter) TypeFlags() byte               { return 0 }
-func (emptyFrameConverter) WritePacket(*rtp.Packet) error { return nil }
+func (emptyFrameConverter) WriteRtpPacket(*rtp.Packet) error { return nil }
 func (emptyFrameConverter) Close() error                  { return nil }

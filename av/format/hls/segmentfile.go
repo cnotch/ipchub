@@ -14,7 +14,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/cnotch/ipchub/protos/mpegts"
+	"github.com/cnotch/ipchub/av/format/mpegts"
 )
 
 type segmentFile interface {

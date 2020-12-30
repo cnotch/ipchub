@@ -7,8 +7,8 @@ package cache
 import (
 	"sync"
 
-	"github.com/cnotch/ipchub/av/h264"
-	"github.com/cnotch/ipchub/protos/rtp"
+	"github.com/cnotch/ipchub/av/codec/h264"
+	"github.com/cnotch/ipchub/av/format/rtp"
 	"github.com/cnotch/queue"
 )
 

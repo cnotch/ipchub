@@ -7,19 +7,19 @@ package rtp
 import (
 	"fmt"
 
-	"github.com/cnotch/ipchub/av"
-	"github.com/cnotch/ipchub/av/h264"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/codec/h264"
 )
 
-type h264FrameExtractor struct {
+type h264Depacketizer struct {
 	fragments []*Packet // 分片包
-	w         av.FrameWriter
+	w         codec.FrameWriter
 	syncClock SyncClock
 }
 
-// NewH264FrameExtractor 实例化 H264 帧提取器
-func NewH264FrameExtractor(w av.FrameWriter) FrameExtractor {
-	fe := &h264FrameExtractor{
+// NewH264Depacketize 实例化 H264 帧提取器
+func NewH264Depacketize(w codec.FrameWriter) Depacketizer {
+	fe := &h264Depacketizer{
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
 	}
@@ -27,13 +27,13 @@ func NewH264FrameExtractor(w av.FrameWriter) FrameExtractor {
 	return fe
 }
 
-func (fe *h264FrameExtractor) Control(p *Packet) error {
-	fe.syncClock.Decode(p.Data)
+func (h264dp *h264Depacketizer) Control(p *Packet) error {
+	h264dp.syncClock.Decode(p.Data)
 	return nil
 }
 
-func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
-	if fe.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
+func (h264dp *h264Depacketizer) Depacketize(packet *Packet) (err error) {
+	if h264dp.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
 		return
 	}
 
@@ -66,23 +66,23 @@ func (fe *h264FrameExtractor) Extract(packet *Packet) (err error) {
 		if payload[0]&0x1f == h264.NalFillerData {
 			return
 		}
-		frame := &av.Frame{
-			FrameType:    av.FrameVideo,
-			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+		frame := &codec.Frame{
+			FrameType:    codec.FrameVideo,
+			AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 			Payload:      payload,
 		}
-		err = fe.w.WriteFrame(frame)
+		err = h264dp.w.WriteFrame(frame)
 	case naluType == h264.NalStapaInRtp:
-		err = fe.extractStapa(packet)
+		err = h264dp.depacketizeStapa(packet)
 	case naluType == h264.NalFuAInRtp:
-		err = fe.extractFuA(packet)
+		err = h264dp.depacketizeFuA(packet)
 	default:
 		err = fmt.Errorf("nalu type %d is currently not handled", naluType)
 	}
 	return
 }
 
-func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
+func (h264dp *h264Depacketizer) depacketizeStapa(packet *Packet) (err error) {
 	payload := packet.Payload()
 	header := payload[0]
 
@@ -112,14 +112,14 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 
 		off += 2
 		if payload[off]&0x1f != h264.NalFillerData {
-			frame := &av.Frame{
-				FrameType:    av.FrameVideo,
-				AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+			frame := &codec.Frame{
+				FrameType:    codec.FrameVideo,
+				AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 				Payload:      make([]byte, nalSize),
 			}
 			copy(frame.Payload, payload[off:])
 			frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
-			if err = fe.w.WriteFrame(frame); err != nil {
+			if err = h264dp.w.WriteFrame(frame); err != nil {
 				return
 			}
 		}
@@ -131,7 +131,7 @@ func (fe *h264FrameExtractor) extractStapa(packet *Packet) (err error) {
 	return
 }
 
-func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
+func (h264dp *h264Depacketizer) depacketizeFuA(packet *Packet) (err error) {
 	payload := packet.Payload()
 	header := payload[0]
 
@@ -157,45 +157,45 @@ func (fe *h264FrameExtractor) extractFuA(packet *Packet) (err error) {
 	}
 
 	if (fuHeader>>7)&1 == 1 { // 第一个分片包
-		fe.fragments = fe.fragments[:0]
+		h264dp.fragments = h264dp.fragments[:0]
 	}
-	if len(fe.fragments) != 0 &&
-		fe.fragments[len(fe.fragments)-1].SequenceNumber != packet.SequenceNumber-1 {
+	if len(h264dp.fragments) != 0 &&
+		h264dp.fragments[len(h264dp.fragments)-1].SequenceNumber != packet.SequenceNumber-1 {
 		// Packet loss ?
-		fe.fragments = fe.fragments[:0]
+		h264dp.fragments = h264dp.fragments[:0]
 		return
 	}
 
 	// 缓存片段
-	fe.fragments = append(fe.fragments, packet)
+	h264dp.fragments = append(h264dp.fragments, packet)
 
 	if (fuHeader>>6)&1 == 1 { // 最后一个片段
 		frameLen := 1 // 计数帧总长,初始 naluType header len
-		for _, fragment := range fe.fragments {
+		for _, fragment := range h264dp.fragments {
 			frameLen += len(fragment.Payload()) - 2
 		}
 
-		frame := &av.Frame{
-			FrameType:    av.FrameVideo,
-			AbsTimestamp: fe.rtp2ntp(packet.Timestamp),
+		frame := &codec.Frame{
+			FrameType:    codec.FrameVideo,
+			AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 			Payload:      make([]byte, frameLen)}
 
 		frame.Payload[0] = (header & 0x60) | (fuHeader & 0x1F)
 		offset := 1
-		for _, fragment := range fe.fragments {
+		for _, fragment := range h264dp.fragments {
 			payload := fragment.Payload()[2:]
 			copy(frame.Payload[offset:], payload)
 			offset += len(payload)
 		}
 		// 清空分片缓存
-		fe.fragments = fe.fragments[:0]
+		h264dp.fragments = h264dp.fragments[:0]
 
-		err = fe.w.WriteFrame(frame)
+		err = h264dp.w.WriteFrame(frame)
 	}
 
 	return
 }
 
-func (fe *h264FrameExtractor) rtp2ntp(timestamp uint32) int64 {
-	return fe.syncClock.Rtp2Ntp(timestamp)
+func (h264dp *h264Depacketizer) rtp2ntp(timestamp uint32) int64 {
+	return h264dp.syncClock.Rtp2Ntp(timestamp)
 }

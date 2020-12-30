@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cnotch/ipchub/protos/rtp"
+	"github.com/cnotch/ipchub/av/format/rtp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -88,7 +88,7 @@ func Test_Consumption_Consume(t *testing.T) {
 		closed := false
 		go func() {
 			for !closed {
-				s.WritePacket(&rtp.Packet{})
+				s.WriteRtpPacket(&rtp.Packet{})
 				<-time.After(time.Millisecond * 1)
 			}
 		}()
@@ -113,7 +113,7 @@ func Test_Consumption_ConsumePanic(t *testing.T) {
 		closed := false
 		go func() {
 			for !closed {
-				s.WritePacket(&rtp.Packet{})
+				s.WriteRtpPacket(&rtp.Packet{})
 				<-time.After(time.Millisecond * 1)
 			}
 		}()
@@ -136,7 +136,7 @@ func benchDispatch(n int, b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			s.WritePacket(&rtp.Packet{})
+			s.WriteRtpPacket(&rtp.Packet{})
 		}
 	})
 	s.Close()

@@ -9,14 +9,14 @@ import (
 	"encoding/hex"
 	"strings"
 
-	"github.com/cnotch/ipchub/av"
-	"github.com/cnotch/ipchub/av/aac"
-	"github.com/cnotch/ipchub/av/h264"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/codec/aac"
+	"github.com/cnotch/ipchub/av/codec/h264"
 	"github.com/cnotch/ipchub/utils/scan"
 	"github.com/pixelbender/go-sdp/sdp"
 )
 
-func parseMeta(rawsdp string, video *av.VideoMeta, audio *av.AudioMeta) {
+func parseMeta(rawsdp string, video *codec.VideoMeta, audio *codec.AudioMeta) {
 	sdp, err := sdp.ParseString(rawsdp)
 	if err != nil {
 		return
@@ -53,7 +53,7 @@ func parseMeta(rawsdp string, video *av.VideoMeta, audio *av.AudioMeta) {
 	}
 }
 
-func parseAudioMeta(m *sdp.Format, audio *av.AudioMeta) {
+func parseAudioMeta(m *sdp.Format, audio *codec.AudioMeta) {
 	audio.SampleRate = 44100
 	audio.Channels = 2
 	audio.SampleSize = 16
@@ -97,7 +97,7 @@ func parseAudioMeta(m *sdp.Format, audio *av.AudioMeta) {
 	}
 }
 
-func parseVideoMeta(m *sdp.Format, video *av.VideoMeta) {
+func parseVideoMeta(m *sdp.Format, video *codec.VideoMeta) {
 	if len(m.Params) == 0 {
 		return
 	}
@@ -124,7 +124,7 @@ func parseVideoMeta(m *sdp.Format, video *av.VideoMeta) {
 	}
 }
 
-func parseH264SpsPps(s string, video *av.VideoMeta) {
+func parseH264SpsPps(s string, video *codec.VideoMeta) {
 	ppsStr, spsStr, ok := scan.Comma.Scan(s)
 	if !ok {
 		return

@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cnotch/ipchub/protos/mpegts"
+	"github.com/cnotch/ipchub/av/format/mpegts"
 	"github.com/cnotch/ipchub/utils/murmur"
 	"github.com/cnotch/xlog"
 )

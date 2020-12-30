@@ -6,7 +6,7 @@
 
 package hls
 
-import "github.com/cnotch/ipchub/av/aac"
+import "github.com/cnotch/ipchub/av/codec/aac"
 
 const (
 	// in ms, for HLS aac sync time.

@@ -7,7 +7,7 @@ package flv
 import (
 	"bytes"
 
-	"github.com/cnotch/ipchub/protos/amf"
+	"github.com/cnotch/ipchub/av/format/amf"
 )
 
 // 数据名称常量，如元数据

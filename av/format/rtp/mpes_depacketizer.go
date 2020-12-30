@@ -5,21 +5,21 @@
 package rtp
 
 import (
-	"github.com/cnotch/ipchub/av"
-	"github.com/cnotch/ipchub/av/aac"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/codec/aac"
 )
 
-type mpesFrameExtractor struct {
-	w           av.FrameWriter
+type aacDepacketizer struct {
+	w           codec.FrameWriter
 	sizeLength  int
 	indexLength int
 	// extractFunc func(packet *Packet) error
 	syncClock SyncClock
 }
 
-// NewMPESFrameExtractor 实例化 MPES 帧提取器
-func NewMPESFrameExtractor(w av.FrameWriter, rtpTimeUnit int) FrameExtractor {
-	fe := &mpesFrameExtractor{
+// NewAacDepacketizer 实例化 AAC 解包器
+func NewAacDepacketizer(w codec.FrameWriter, rtpTimeUnit int) Depacketizer {
+	fe := &aacDepacketizer{
 		w:           w,
 		sizeLength:  13,
 		indexLength: 3,
@@ -28,8 +28,8 @@ func NewMPESFrameExtractor(w av.FrameWriter, rtpTimeUnit int) FrameExtractor {
 	return fe
 }
 
-func (fe *mpesFrameExtractor) Control(p *Packet) error {
-	fe.syncClock.Decode(p.Data)
+func (aacdp *aacDepacketizer) Control(p *Packet) error {
+	aacdp.syncClock.Decode(p.Data)
 	return nil
 }
 
@@ -51,14 +51,14 @@ func (fe *mpesFrameExtractor) Control(p *Packet) error {
 //  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
 // 当 sizelength=6;indexlength=2;indexdeltalength=2 时
 // 单帧封装时，rtp payload的长度 = AU-header-lengths(两个字节) + AU-header(6+2) + AU的长度
-func (fe *mpesFrameExtractor) Extract(packet *Packet) (err error) {
-	if fe.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
+func (aacdp *aacDepacketizer) Depacketize(packet *Packet) (err error) {
+	if aacdp.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
 		return
 	}
-	return fe.extractFor2ByteAUHeader(packet)
+	return aacdp.depacketizeFor2ByteAUHeader(packet)
 }
 
-func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error) {
+func (aacdp *aacDepacketizer) depacketizeFor2ByteAUHeader(packet *Packet) (err error) {
 	payload := packet.Payload()
 
 	// AU-headers-length 2bytes
@@ -73,13 +73,13 @@ func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error
 	frameTimeStamp := packet.Timestamp
 	for i := 0; i < int(auHeadersCount); i++ {
 		auHeader := uint16(0) | (uint16(auHeaders[0]) << 8) | uint16(auHeaders[1])
-		frameSize := auHeader >> fe.indexLength
-		frame := &av.Frame{
-			FrameType:    av.FrameAudio,
-			AbsTimestamp: fe.rtp2ntp(frameTimeStamp),
+		frameSize := auHeader >> aacdp.indexLength
+		frame := &codec.Frame{
+			FrameType:    codec.FrameAudio,
+			AbsTimestamp: aacdp.rtp2ntp(frameTimeStamp),
 			Payload:      framesPayload[:frameSize],
 		}
-		if err = fe.w.WriteFrame(frame); err != nil {
+		if err = aacdp.w.WriteFrame(frame); err != nil {
 			return
 		}
 
@@ -92,7 +92,7 @@ func (fe *mpesFrameExtractor) extractFor2ByteAUHeader(packet *Packet) (err error
 	return
 }
 
-func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error) {
+func (aacdp *aacDepacketizer) depacketizeFor1ByteAUHeader(packet *Packet) (err error) {
 	payload := packet.Payload()
 
 	// AU-headers-length 2bytes
@@ -107,13 +107,13 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 	frameTimeStamp := packet.Timestamp
 	for i := 0; i < int(auHeadersCount); i++ {
 		auHeader := auHeaders[0]
-		frameSize := auHeader >> fe.indexLength
-		frame := &av.Frame{
-			FrameType:    av.FrameAudio,
-			AbsTimestamp: fe.rtp2ntp(frameTimeStamp),
+		frameSize := auHeader >> aacdp.indexLength
+		frame := &codec.Frame{
+			FrameType:    codec.FrameAudio,
+			AbsTimestamp: aacdp.rtp2ntp(frameTimeStamp),
 			Payload:      framesPayload[:frameSize],
 		}
-		if err = fe.w.WriteFrame(frame); err != nil {
+		if err = aacdp.w.WriteFrame(frame); err != nil {
 			return
 		}
 
@@ -126,6 +126,6 @@ func (fe *mpesFrameExtractor) extractFor1ByteAUHeader(packet *Packet) (err error
 	return
 }
 
-func (fe *mpesFrameExtractor) rtp2ntp(timestamp uint32) int64 {
-	return fe.syncClock.Rtp2Ntp(timestamp)
+func (aacdp *aacDepacketizer) rtp2ntp(timestamp uint32) int64 {
+	return aacdp.syncClock.Rtp2Ntp(timestamp)
 }

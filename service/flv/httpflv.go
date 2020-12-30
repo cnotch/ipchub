@@ -11,7 +11,7 @@ import (
 	"runtime/debug"
 
 	"github.com/cnotch/ipchub/media"
-	"github.com/cnotch/ipchub/protos/flv"
+	"github.com/cnotch/ipchub/av/format/flv"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/xlog"
 )

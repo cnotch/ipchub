@@ -60,7 +60,7 @@ func (s *tcpPushStream) Close() error {
 }
 
 func (s *tcpPushStream) WritePacket(p *RTPPack) error {
-	return s.stream.WritePacket(p)
+	return s.stream.WriteRtpPacket(p)
 }
 
 type tcpConsumer struct {

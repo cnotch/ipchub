@@ -10,13 +10,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/cnotch/ipchub/av"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/format/flv"
+	"github.com/cnotch/ipchub/av/format/hls"
+	"github.com/cnotch/ipchub/av/format/mpegts"
+	"github.com/cnotch/ipchub/av/format/rtp"
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media/cache"
-	"github.com/cnotch/ipchub/protos/flv"
-	"github.com/cnotch/ipchub/protos/hls"
-	"github.com/cnotch/ipchub/protos/mpegts"
-	"github.com/cnotch/ipchub/protos/rtp"
 	"github.com/cnotch/ipchub/stats"
 	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/queue"
@@ -60,8 +60,8 @@ type Stream struct {
 	multicast            Multicastable
 	hls                  Hlsable
 	logger               *xlog.Logger // 日志对象
-	Video                av.VideoMeta
-	Audio                av.AudioMeta
+	Video                codec.VideoMeta
+	Audio                codec.AudioMeta
 }
 
 // NewStream 创建新的流
@@ -101,17 +101,17 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 func (s *Stream) prepareOtherStream() {
 	// steam(rtp)->frameconverter->stream(frame)->flvmuxer->stream(tag)
 	// prepare rtp.Packet -> av.Frame
-	var videoExtractor, audioExtractor rtp.FrameExtractor
+	var videoExtractor, audioExtractor rtp.Depacketizer
 	if s.Video.Codec == "H264" {
-		videoExtractor = rtp.NewH264FrameExtractor(s)
+		videoExtractor = rtp.NewH264Depacketize(s)
 	}
 	if s.Audio.Codec == "AAC" {
-		audioExtractor = rtp.NewMPESFrameExtractor(s, s.Audio.SampleRate)
+		audioExtractor = rtp.NewAacDepacketizer(s, s.Audio.SampleRate)
 	}
 	if videoExtractor == nil && audioExtractor == nil {
 		s.frameConverter = emptyFrameConverter{}
 	} else {
-		s.frameConverter = rtp.NewFrameConverter(videoExtractor, audioExtractor,
+		s.frameConverter = rtp.NewDemuxer(videoExtractor, audioExtractor,
 			s.logger.With(xlog.Fields(xlog.F("extra", "rtp2frame"))))
 	}
 
@@ -197,8 +197,8 @@ func (s *Stream) close(status int32) error {
 	return nil
 }
 
-// WritePacket 向流写入一个媒体包
-func (s *Stream) WritePacket(packet *rtp.Packet) error {
+// WriteRtpPacket 向流写入一个媒体包
+func (s *Stream) WriteRtpPacket(packet *rtp.Packet) error {
 	status := atomic.LoadInt32(&s.status)
 	if status != StreamOK {
 		return statusErrors[status]
@@ -209,12 +209,12 @@ func (s *Stream) WritePacket(packet *rtp.Packet) error {
 	s.cache.CachePack(packet)
 	s.consumptions.SendToAll(packet)
 
-	s.frameConverter.WritePacket(packet)
+	s.frameConverter.WriteRtpPacket(packet)
 	return nil
 }
 
 // WriteFrame .
-func (s *Stream) WriteFrame(frame *av.Frame) error {
+func (s *Stream) WriteFrame(frame *codec.Frame) error {
 	if err := s.flvMuxer.WriteFrame(frame); err != nil {
 		s.logger.Error(err.Error())
 	}
@@ -227,7 +227,7 @@ func (s *Stream) WriteFrame(frame *av.Frame) error {
 }
 
 // WriteTag .
-func (s *Stream) WriteTag(tag *flv.Tag) error {
+func (s *Stream) WriteFlvTag(tag *flv.Tag) error {
 	status := atomic.LoadInt32(&s.status)
 	if status != StreamOK {
 		return statusErrors[status]
@@ -319,8 +319,8 @@ type StreamInfo struct {
 	Path             string            `json:"path"`
 	Addr             string            `json:"addr"`
 	Size             int               `json:"size"`
-	Video            *av.VideoMeta     `json:"video,omitempty"`
-	Audio            *av.AudioMeta     `json:"audio,omitempty"`
+	Video            *codec.VideoMeta  `json:"video,omitempty"`
+	Audio            *codec.AudioMeta  `json:"audio,omitempty"`
 	ConsumptionCount int               `json:"cc"`
 	Consumptions     []ConsumptionInfo `json:"cs,omitempty"`
 }

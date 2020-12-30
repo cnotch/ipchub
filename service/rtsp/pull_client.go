@@ -363,7 +363,7 @@ func (c *PullClient) playStream() {
 }
 
 func (c *PullClient) onPack(p *RTPPack) error {
-	return c.stream.WritePacket(p)
+	return c.stream.WriteRtpPacket(p)
 }
 
 func (c *PullClient) onRequest(r *Request) (err error) {

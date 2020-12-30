@@ -8,9 +8,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/cnotch/ipchub/av"
-	"github.com/cnotch/ipchub/av/h264"
-	"github.com/cnotch/ipchub/protos/amf"
+	"github.com/cnotch/ipchub/av/codec"
+	"github.com/cnotch/ipchub/av/codec/h264"
+	"github.com/cnotch/ipchub/av/format/amf"
 	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
 )
@@ -24,8 +24,8 @@ const (
 
 // MuxerAvcAac flv muxer from av.Frame(H264[+AAC])
 type MuxerAvcAac struct {
-	videoMeta         av.VideoMeta
-	audioMeta         av.AudioMeta
+	videoMeta         codec.VideoMeta
+	audioMeta         codec.AudioMeta
 	typeFlags         byte
 	audioDataTemplate *AudioData
 	recvQueue         *queue.SyncQueue
@@ -39,7 +39,7 @@ type MuxerAvcAac struct {
 }
 
 // NewMuxerAvcAac .
-func NewMuxerAvcAac(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter TagWriter, logger *xlog.Logger) *MuxerAvcAac {
+func NewMuxerAvcAac(videoMeta codec.VideoMeta, audioMeta codec.AudioMeta, tagWriter TagWriter, logger *xlog.Logger) *MuxerAvcAac {
 	muxer := &MuxerAvcAac{
 		recvQueue: queue.NewSyncQueue(),
 		videoMeta: videoMeta,
@@ -64,7 +64,7 @@ func NewMuxerAvcAac(videoMeta av.VideoMeta, audioMeta av.AudioMeta, tagWriter Ta
 }
 
 // WriteFrame .
-func (muxer *MuxerAvcAac) WriteFrame(frame *av.Frame) error {
+func (muxer *MuxerAvcAac) WriteFrame(frame *codec.Frame) error {
 	muxer.recvQueue.Push(frame)
 	return nil
 }
@@ -111,12 +111,12 @@ func (muxer *MuxerAvcAac) process() {
 			continue
 		}
 
-		frame := f.(*av.Frame)
+		frame := f.(*codec.Frame)
 		if muxer.basePts == 0 {
 			muxer.basePts = frame.AbsTimestamp
 		}
 
-		if frame.FrameType == av.FrameVideo {
+		if frame.FrameType == codec.FrameVideo {
 			if err := muxer.muxVideoTag(frame); err != nil {
 				muxer.logger.Errorf("flvmuxer: muxVideoTag error - %s", err.Error())
 			}
@@ -128,7 +128,7 @@ func (muxer *MuxerAvcAac) process() {
 	}
 }
 
-func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) error {
+func (muxer *MuxerAvcAac) muxVideoTag(frame *codec.Frame) error {
 	if frame.Payload[0]&0x1F == h264.NalSps {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
@@ -181,10 +181,10 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *av.Frame) error {
 		Data:      data,
 	}
 
-	return muxer.tagWriter.WriteTag(tag)
+	return muxer.tagWriter.WriteFlvTag(tag)
 }
 
-func (muxer *MuxerAvcAac) muxAudioTag(frame *av.Frame) error {
+func (muxer *MuxerAvcAac) muxAudioTag(frame *codec.Frame) error {
 	audioData := *muxer.audioDataTemplate
 	audioData.Body = frame.Payload
 	data, _ := audioData.Marshal()
@@ -196,7 +196,7 @@ func (muxer *MuxerAvcAac) muxAudioTag(frame *av.Frame) error {
 		StreamID:  0,
 		Data:      data,
 	}
-	return muxer.tagWriter.WriteTag(tag)
+	return muxer.tagWriter.WriteFlvTag(tag)
 }
 
 func (muxer *MuxerAvcAac) muxMetadataTag() error {
@@ -269,7 +269,7 @@ func (muxer *MuxerAvcAac) muxMetadataTag() error {
 		Data:      data,
 	}
 
-	return muxer.tagWriter.WriteTag(tag)
+	return muxer.tagWriter.WriteFlvTag(tag)
 }
 
 func (muxer *MuxerAvcAac) muxSequenceHeaderTag() error {
@@ -304,7 +304,7 @@ func (muxer *MuxerAvcAac) muxSequenceHeaderTag() error {
 		Data:      data,
 	}
 
-	if err := muxer.tagWriter.WriteTag(tag); err != nil {
+	if err := muxer.tagWriter.WriteFlvTag(tag); err != nil {
 		return err
 	}
 
@@ -328,7 +328,7 @@ func (muxer *MuxerAvcAac) muxAudioSequenceHeaderTag() error {
 		StreamID:  0,
 		Data:      data,
 	}
-	return muxer.tagWriter.WriteTag(tag)
+	return muxer.tagWriter.WriteFlvTag(tag)
 }
 
 func (muxer *MuxerAvcAac) prepareTemplate() {

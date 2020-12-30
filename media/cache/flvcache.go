@@ -7,7 +7,7 @@ package cache
 import (
 	"sync"
 
-	"github.com/cnotch/ipchub/protos/flv"
+	"github.com/cnotch/ipchub/av/format/flv"
 	"github.com/cnotch/queue"
 )
 

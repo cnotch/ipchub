@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"io"
 
-	"github.com/cnotch/ipchub/protos/amf"
+	"github.com/cnotch/ipchub/av/format/amf"
 )
 
 // flv 标记类型ID
@@ -42,7 +42,7 @@ type Tag struct {
 
 // TagWriter 包装 WriteTag 方法的接口
 type TagWriter interface {
-	WriteTag(tag *Tag) error
+	WriteFlvTag(tag *Tag) error
 }
 
 // Size tag 的总大小（包括 Header + Data）
