@@ -97,3 +97,28 @@ const (
 	MaxWidth    = MaxMbWidth * 16
 	MaxHeight   = MaxMbHeight * 16
 )
+
+// NulType .
+func NulType(b byte) byte {
+	return b & NalTypeBitmask
+}
+
+// IsSps .
+func IsSps(b byte) bool {
+	return b&NalTypeBitmask == NalSps
+}
+
+// IsPps .
+func IsPps(b byte) bool {
+	return b&NalTypeBitmask == NalPps
+}
+
+// IsIdrSlice .
+func IsIdrSlice(b byte) bool {
+	return b&NalTypeBitmask == NalIdrSlice
+}
+
+// IsFillerData .
+func IsFillerData(b byte) bool {
+	return b&NalTypeBitmask == NalFillerData
+}
