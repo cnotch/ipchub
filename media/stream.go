@@ -103,7 +103,7 @@ func (s *Stream) prepareOtherStream() {
 	// prepare rtp.Packet -> av.Frame
 	var videoExtractor, audioExtractor rtp.Depacketizer
 	if s.Video.Codec == "H264" {
-		videoExtractor = rtp.NewH264Depacketize(s)
+		videoExtractor = rtp.NewH264Depacketizer(s)
 	}
 	if s.Audio.Codec == "AAC" {
 		audioExtractor = rtp.NewAacDepacketizer(s, s.Audio.SampleRate)

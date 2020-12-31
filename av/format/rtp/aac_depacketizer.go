@@ -13,7 +13,7 @@ type aacDepacketizer struct {
 	w           codec.FrameWriter
 	sizeLength  int
 	indexLength int
-	// extractFunc func(packet *Packet) error
+	// depacketizeFunc func(packet *Packet) error
 	syncClock SyncClock
 }
 

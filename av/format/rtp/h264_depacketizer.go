@@ -17,8 +17,8 @@ type h264Depacketizer struct {
 	syncClock SyncClock
 }
 
-// NewH264Depacketize 实例化 H264 帧提取器
-func NewH264Depacketize(w codec.FrameWriter) Depacketizer {
+// NewH264Depacketizer 实例化 H264 帧提取器
+func NewH264Depacketizer(w codec.FrameWriter) Depacketizer {
 	fe := &h264Depacketizer{
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
