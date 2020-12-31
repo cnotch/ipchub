@@ -1,4 +1,4 @@
-## 1. 跟配置
+## 1. 根配置对象
 属性 | 说明 |  示例  
 -|-|-
 listen | 侦听地址，":1554" | 默认：":1554" |
@@ -23,7 +23,7 @@ key | 私钥内容或文件 | |
 属性 | 说明 |  示例  
 -|-|-
 pattern | 本地路径模式字串 | 当以'/'结尾，表示一个以pattern开头的请求都路由到下面的url |
-url | 路由的目标地址，用户名和密码可以直接写在url中 | rtsp://admin@adminlocalhost/live2 |
+url | 路由的目标地址，用户名和密码可以直接写在url中 | rtsp://admin:admin@localhost/live2 |
 keepalive | 是否保持连接；如果没有消费者是否继续保持连接，如果为false在5分钟后自动断开 | false/true |
 
 ### 3.1 pattern
