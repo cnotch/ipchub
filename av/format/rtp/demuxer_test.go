@@ -21,7 +21,7 @@ var demuxerTestCases = []struct {
 }{
 	{"game.rtp", frameWriter{1354, 1937, 11, 0, 0}},
 	{"music.rtp", frameWriter{1505, 2569, 9, 0, 9}},
-	{"4k.rtp", frameWriter{898, 1359, 28, 0, 27}},
+	// {"4k.rtp", frameWriter{898, 1359, 28, 0, 27}},
 }
 
 func TestDemuxer(t *testing.T) {
