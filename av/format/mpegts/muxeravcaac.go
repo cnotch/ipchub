@@ -131,7 +131,7 @@ func (muxer *MuxerAvcAac) process() {
 			muxer.basePts = frame.AbsTimestamp
 		}
 
-		if frame.FrameType == codec.FrameVideo {
+		if frame.MediaType == codec.MediaTypeVideo {
 			if err := muxer.muxVideoTag(frame); err != nil {
 				muxer.logger.Errorf("tsmuxer: muxVideoFrame error - %s", err.Error())
 			}

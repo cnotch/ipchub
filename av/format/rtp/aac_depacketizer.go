@@ -75,7 +75,7 @@ func (aacdp *aacDepacketizer) depacketizeFor2ByteAUHeader(packet *Packet) (err e
 		auHeader := uint16(0) | (uint16(auHeaders[0]) << 8) | uint16(auHeaders[1])
 		frameSize := auHeader >> aacdp.indexLength
 		frame := &codec.Frame{
-			FrameType:    codec.FrameAudio,
+			MediaType:    codec.MediaTypeAudio,
 			AbsTimestamp: aacdp.rtp2ntp(frameTimeStamp),
 			Payload:      framesPayload[:frameSize],
 		}
@@ -109,7 +109,7 @@ func (aacdp *aacDepacketizer) depacketizeFor1ByteAUHeader(packet *Packet) (err e
 		auHeader := auHeaders[0]
 		frameSize := auHeader >> aacdp.indexLength
 		frame := &codec.Frame{
-			FrameType:    codec.FrameAudio,
+			MediaType:    codec.MediaTypeAudio,
 			AbsTimestamp: aacdp.rtp2ntp(frameTimeStamp),
 			Payload:      framesPayload[:frameSize],
 		}

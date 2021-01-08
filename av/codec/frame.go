@@ -4,15 +4,77 @@
 
 package codec
 
-// 帧类型
-const (
-	FrameVideo = byte(iota)
-	FrameAudio
+import (
+	"fmt"
+	"strings"
 )
+
+// MediaType 媒体类型
+type MediaType int
+
+// 媒体类型常量
+const (
+	MediaTypeUnknown MediaType = iota - 1 // Usually treated as MediaTypeData
+	MediaTypeVideo
+	MediaTypeAudio
+	MediaTypeData // Opaque data information usually continuous
+	MediaTypeSubtitle
+	MediaTypeAttachment // Opaque data information usually sparse
+	MediaTypeNB
+)
+
+// String returns a lower-case ASCII representation of the media type.
+func (mt MediaType) String() string {
+	switch mt {
+	case MediaTypeVideo:
+		return "video"
+	case MediaTypeAudio:
+		return "audio"
+	case MediaTypeData:
+		return "data"
+	case MediaTypeSubtitle:
+		return "subtitle"
+	case MediaTypeAttachment:
+		return "attachment"
+	default:
+		return ""
+	}
+}
+
+// MarshalText marshals the MediaType to text.
+func (mt *MediaType) MarshalText() ([]byte, error) {
+	return []byte(mt.String()), nil
+}
+
+// UnmarshalText unmarshals text to a MediaType.
+func (mt *MediaType) UnmarshalText(text []byte) error {
+	if !mt.unmarshalText(string(text)) {
+		return fmt.Errorf("unrecognized media type: %q", text)
+	}
+	return nil
+}
+
+func (mt *MediaType) unmarshalText(text string) bool {
+	switch strings.ToLower(text) {
+	case "video":
+		*mt = MediaTypeVideo
+	case "audio":
+		*mt = MediaTypeAudio
+	case "data":
+		*mt = MediaTypeData
+	case "subtitle":
+		*mt = MediaTypeSubtitle
+	case "attachment":
+		*mt = MediaTypeAttachment
+	default:
+		return false
+	}
+	return true
+}
 
 // Frame 音视频完整帧
 type Frame struct {
-	FrameType    byte   // 帧类型
+	MediaType           // 媒体类型
 	AbsTimestamp int64  // 绝对时间戳(主要用于表示 pts)，单位为 ms 的 UNIX 时间
 	Payload      []byte // 媒体数据载荷
 }

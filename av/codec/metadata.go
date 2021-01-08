@@ -6,14 +6,16 @@ package codec
 
 // VideoMeta 视频元数据
 type VideoMeta struct {
-	Codec     string  `json:"codec"`
-	Width     int     `json:"width,omitempty"`
-	Height    int     `json:"height,omitempty"`
-	FrameRate float64 `json:"framerate,omitempty"`
-	DataRate  float64 `json:"datarate,omitempty"`
-	Sps       []byte  `json:"-"`
-	Pps       []byte  `json:"-"`
-	Vps       []byte  `json:"-"`
+	Codec          string  `json:"codec"`
+	Width          int     `json:"width,omitempty"`
+	Height         int     `json:"height,omitempty"`
+	FixedFrameRate bool    `json:"fixedframerate,omitempty"`
+	FrameRate      float64 `json:"framerate,omitempty"`
+	DataRate       float64 `json:"datarate,omitempty"`
+	ClockRate      int     `json:"clockrate,omitempty"`
+	Sps            []byte  `json:"-"`
+	Pps            []byte  `json:"-"`
+	Vps            []byte  `json:"-"`
 }
 
 // AudioMeta 音频元数据

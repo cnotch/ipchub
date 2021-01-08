@@ -77,7 +77,7 @@ type frameWriter struct {
 }
 
 func (fw *frameWriter) WriteFrame(frame *codec.Frame) (err error) {
-	if frame.FrameType == codec.FrameVideo {
+	if frame.MediaType == codec.MediaTypeVideo {
 		fw.videoFrames++
 		if h264.IsSps(frame.Payload[0]) {
 			fw.sps++

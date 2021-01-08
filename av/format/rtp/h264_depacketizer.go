@@ -67,7 +67,7 @@ func (h264dp *h264Depacketizer) Depacketize(packet *Packet) (err error) {
 			return
 		}
 		frame := &codec.Frame{
-			FrameType:    codec.FrameVideo,
+			MediaType:    codec.MediaTypeVideo,
 			AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 			Payload:      payload,
 		}
@@ -113,7 +113,7 @@ func (h264dp *h264Depacketizer) depacketizeStapa(packet *Packet) (err error) {
 		off += 2
 		if payload[off]&0x1f != h264.NalFillerData {
 			frame := &codec.Frame{
-				FrameType:    codec.FrameVideo,
+				MediaType:    codec.MediaTypeVideo,
 				AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 				Payload:      make([]byte, nalSize),
 			}
@@ -176,7 +176,7 @@ func (h264dp *h264Depacketizer) depacketizeFuA(packet *Packet) (err error) {
 		}
 
 		frame := &codec.Frame{
-			FrameType:    codec.FrameVideo,
+			MediaType:    codec.MediaTypeVideo,
 			AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 			Payload:      make([]byte, frameLen)}
 
