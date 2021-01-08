@@ -2,7 +2,7 @@
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
 
-package media
+package sdp
 
 import (
 	"encoding/base64"
@@ -16,10 +16,10 @@ import (
 	"github.com/pixelbender/go-sdp/sdp"
 )
 
-func parseMeta(rawsdp string, video *codec.VideoMeta, audio *codec.AudioMeta) {
+func ParseMetadata(rawsdp string, video *codec.VideoMeta, audio *codec.AudioMeta) error {
 	sdp, err := sdp.ParseString(rawsdp)
 	if err != nil {
-		return
+		return err
 	}
 
 	for _, media := range sdp.Media {
@@ -51,12 +51,13 @@ func parseMeta(rawsdp string, video *codec.VideoMeta, audio *codec.AudioMeta) {
 			}
 		}
 	}
+	return nil
 }
 
 func parseAudioMeta(m *sdp.Format, audio *codec.AudioMeta) {
-	audio.SampleRate = 44100
-	audio.Channels = 2
 	audio.SampleSize = 16
+	audio.Channels = 2
+	audio.SampleRate = 44100
 	if m.ClockRate > 0 {
 		audio.SampleRate = m.ClockRate
 	}
@@ -69,7 +70,6 @@ func parseAudioMeta(m *sdp.Format, audio *codec.AudioMeta) {
 		return
 	}
 	if audio.Codec == "AAC" {
-		audio.Sps = []byte{0x11, 0x90, 0x56, 0xe5, 0x00}
 		for _, p := range m.Params {
 			i := strings.Index(p, "config=")
 			if i < 0 {
@@ -82,22 +82,28 @@ func parseAudioMeta(m *sdp.Format, audio *codec.AudioMeta) {
 				p = p[:endi]
 			}
 
-			if sps, err := hex.DecodeString(p); err == nil {
-				copy(audio.Sps, sps)
-			} else {
-				var rawSps aac.RawSPS
-				rawSps.Profile = 2
-				rawSps.SampleRate = byte(aac.SampleRateIndex(audio.SampleRate))
-				rawSps.ChannelConfig = byte(audio.Channels)
-				config := rawSps.Encode2Bytes()
-				copy(audio.Sps, config[:])
+			var config []byte
+			var err error
+			if config, err = hex.DecodeString(p); err != nil {
+				config = aac.Encode2BytesASC(2,
+					byte(aac.SamplingIndex(audio.SampleRate)),
+					byte(audio.Channels))
 			}
+
+			// audio.SetParameterSet(aac.ParameterSetConfig, config)
+			audio.Sps = config
+			_ = aac.MetadataIsReady(audio)
 			break
 		}
 	}
+
 }
 
 func parseVideoMeta(m *sdp.Format, video *codec.VideoMeta) {
+	if m.ClockRate > 0 {
+		video.ClockRate = m.ClockRate
+	}
+
 	if len(m.Params) == 0 {
 		return
 	}
@@ -131,24 +137,16 @@ func parseH264SpsPps(s string, video *codec.VideoMeta) {
 	}
 
 	sps, err := base64.StdEncoding.DecodeString(spsStr)
-	if err != nil {
-		return
+	if err == nil {
+		// video.SetParameterSet(h264.ParameterSetSps, sps)
+		video.Sps = sps
 	}
 
 	pps, err := base64.StdEncoding.DecodeString(ppsStr)
-	if err != nil {
-		return
+	if err == nil {
+		// video.SetParameterSet(h264.ParameterSetPps, pps)
+		video.Pps = pps
 	}
 
-	var rawSps h264.RawSPS
-	err = rawSps.Decode(sps)
-	if err != nil {
-		return
-	}
-
-	video.Width = rawSps.Width()
-	video.Height = rawSps.Height()
-	video.FrameRate = rawSps.FrameRate()
-	video.Sps = sps
-	video.Pps = pps
+	_ = h264.MetadataIsReady(video)
 }

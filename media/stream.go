@@ -15,6 +15,7 @@ import (
 	"github.com/cnotch/ipchub/av/format/hls"
 	"github.com/cnotch/ipchub/av/format/mpegts"
 	"github.com/cnotch/ipchub/av/format/rtp"
+	"github.com/cnotch/ipchub/av/format/sdp"
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media/cache"
 	"github.com/cnotch/ipchub/stats"
@@ -77,7 +78,7 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 	}
 
 	// parseMeta
-	parseMeta(rawsdp, &s.Video, &s.Audio)
+	sdp.ParseMetadata(rawsdp, &s.Video, &s.Audio)
 
 	// init Cache
 	switch s.Video.Codec {

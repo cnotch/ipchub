@@ -69,17 +69,10 @@ func (muxer *MuxerAvcAac) prepareAacSps() (err error) {
 		return
 	}
 
-	if 0 == muxer.audioSps.Profile || 0x1f == muxer.audioSps.Profile {
-		err = fmt.Errorf("hls decdoe audio aac sequence header failed, aac profile=%d", muxer.audioSps.Profile)
+	if muxer.audioSps.ObjectType == aac.AOT_NULL || muxer.audioSps.ObjectType == aac.AOT_ESCAPE {
+		err = fmt.Errorf("tsmuxer decdoe audio aac sequence header failed, aac object type=%d", muxer.audioSps.ObjectType)
 		return
 	}
-
-	// the profile = object_id + 1
-	// @see aac-mp4a-format-ISO_IEC_14496-3+2001.pdf, page 78,
-	//      Table 1. A.9 MPEG-2 Audio profiles and MPEG-4 Audio object types
-	// so the aac_profile should plus 1, not minus 1, and nginx-rtmp used it to
-	// downcast aac SSR to LC.
-	muxer.audioSps.Profile--
 	return
 }
 

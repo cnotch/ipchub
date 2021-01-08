@@ -119,54 +119,8 @@ func (frame *Frame) prepareAvcHeader(sps, pps []byte) {
 }
 
 func (frame *Frame) prepareAacHeader(sps *aac.RawSPS) {
-	// AAC-ADTS
-	// 6.2 Audio Data Transport Stream, ADTS
-	// in aac-iso-13818-7.pdf, page 26.
-	// fixed 7bytes header
-	adtsHeader := [7]uint8{0xff, 0xf1, 0x00, 0x00, 0x00, 0x0f, 0xfc}
-	size := len(frame.Payload)
-	// the frame length is the AAC raw data plus the adts header size.
-	frameLen := size + 7
-
-	// adts_fixed_header
-	// 2B, 16bits
-	// int16_t syncword; //12bits, '1111 1111 1111'
-	// int8_t ID; //1bit, '0'
-	// int8_t layer; //2bits, '00'
-	// int8_t protection_absent; //1bit, can be '1'
-
-	// 12bits
-	// int8_t profile; //2bit, 7.1 Profiles, page 40
-	// TSAacSampleFrequency sampling_frequency_index; //4bits, Table 35, page 46
-	// int8_t private_bit; //1bit, can be '0'
-	// int8_t channel_configuration; //3bits, Table 8
-	// int8_t original_or_copy; //1bit, can be '0'
-	// int8_t home; //1bit, can be '0'
-
-	// adts_variable_header
-	// 28bits
-	// int8_t copyright_identification_bit; //1bit, can be '0'
-	// int8_t copyright_identification_start; //1bit, can be '0'
-	// int16_t frame_length; //13bits
-	// int16_t adts_buffer_fullness; //11bits, 7FF signals that the bitstream is a variable rate bitstream.
-	// int8_t number_of_raw_data_blocks_in_frame; //2bits, 0 indicating 1 raw_data_block()
-
-	// profile, 2bits
-	adtsHeader[2] = (sps.Profile << 6) & 0xc0
-	// sampling_frequency_index 4bits
-	adtsHeader[2] |= (sps.SampleRate << 2) & 0x3c
-	// channel_configuration 3bits
-	adtsHeader[2] |= (sps.ChannelConfig >> 2) & 0x01
-	adtsHeader[3] = (sps.ChannelConfig << 6) & 0xc0
-	// frame_length 13bits
-	adtsHeader[3] |= uint8((frameLen >> 11) & 0x03)
-	adtsHeader[4] = uint8((frameLen >> 3) & 0xff)
-	adtsHeader[5] = uint8((frameLen << 5) & 0xe0)
-	// adts_buffer_fullness; //11bits
-	adtsHeader[5] |= 0x1f
-
+	adtsHeader := sps.ToAdtsHeader(len(frame.Payload))
 	frame.Header = adtsHeader[:]
-
 	return
 }
 
