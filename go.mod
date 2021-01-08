@@ -5,7 +5,6 @@ go 1.14
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/cnotch/apirouter v0.0.0-20200731232942-89e243a791f3
-	github.com/cnotch/bitutil v0.0.0-20200512012328-08db448fb960
 	github.com/cnotch/loader v0.0.0-20200405015128-d9d964d09439
 	github.com/cnotch/queue v0.0.0-20201224060551-4191569ce8f6
 	github.com/cnotch/scheduler v0.0.0-20200522024700-1d2da93eefc5

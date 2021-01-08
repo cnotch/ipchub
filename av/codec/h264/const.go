@@ -54,6 +54,34 @@ const (
 	NalTypeBitmask = 0x1F
 )
 
+// Profile
+const (
+	ProfileConstrained = (1 << 9)  // 8+1; constraint_set1_flag
+	ProfileIntra       = (1 << 11) // 8+3; constraint_set3_flag
+
+	ProfileBaseline            = 66
+	ProfileConstrainedBaseline = (66 | ProfileConstrained)
+	ProfileMain                = 77
+	ProfileExtended            = 88
+	ProfileHigh                = 100
+	ProfileHigh10              = 110
+	ProfileHigh10Intra         = (110 | ProfileIntra)
+	ProfileMultiViewHigh       = 118
+	ProfileHigh422             = 122
+	ProfileHigh422Intra        = (122 | ProfileIntra)
+	ProfileStereoHigh          = 128
+	ProfileHigh444             = 144
+	ProfileHigh444Predictive   = 244
+	ProfileHigh444Intra        = (244 | ProfileIntra)
+	ProfileCAVLC444            = 44
+)
+
+// 参数集索引
+const (
+	ParameterSetSps = iota
+	ParameterSetPps
+)
+
 // 其他常量
 const (
 	// 7.4.2.1.1: seq_parameter_set_id is in [0, 31].
@@ -97,28 +125,3 @@ const (
 	MaxWidth    = MaxMbWidth * 16
 	MaxHeight   = MaxMbHeight * 16
 )
-
-// NulType .
-func NulType(b byte) byte {
-	return b & NalTypeBitmask
-}
-
-// IsSps .
-func IsSps(b byte) bool {
-	return b&NalTypeBitmask == NalSps
-}
-
-// IsPps .
-func IsPps(b byte) bool {
-	return b&NalTypeBitmask == NalPps
-}
-
-// IsIdrSlice .
-func IsIdrSlice(b byte) bool {
-	return b&NalTypeBitmask == NalIdrSlice
-}
-
-// IsFillerData .
-func IsFillerData(b byte) bool {
-	return b&NalTypeBitmask == NalFillerData
-}

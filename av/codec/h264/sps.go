@@ -1,15 +1,19 @@
 // Copyright (c) 2019,CAOHONGJU All rights reserved.
 // Use of this source code is governed by a MIT-style
 // license that can be found in the LICENSE file.
-
+//
+// Translate from FFmpeg cbs_h264.h cbs_h264_syntax_template.c
+//
 package h264
 
 import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"runtime/debug"
 
-	bits "github.com/cnotch/bitutil"
+	"github.com/cnotch/ipchub/utils"
+	"github.com/cnotch/ipchub/utils/bits"
 )
 
 // RawNALUnitHeader 原始 h264 Nal单元头
@@ -220,13 +224,13 @@ type RawSPS struct {
 	Vui                      RawVUI
 }
 
-// Width Video Width
+// Width 视频宽度（像素）
 func (sps *RawSPS) Width() int {
 	w := (sps.PicWidthInMbsMinus1+1)*16 - sps.FrameCropLeftOffset*2 - sps.FrameCropRightOffset*2
 	return int(w)
 }
 
-// Height Video Height
+// Height 视频高度（像素）
 func (sps *RawSPS) Height() int {
 	h := (2-uint16(sps.FrameMbsOnlyFlag))*(sps.PicHeightInMapUnitsMinus1+1)*16 - sps.FrameCropTopOffset*2 - sps.FrameCropBottomOffset*2
 	return int(h)
@@ -256,7 +260,13 @@ func (sps *RawSPS) DecodeString(b64 string) error {
 
 // Decode 从字节序列中解码 sps NAL
 func (sps *RawSPS) Decode(data []byte) (err error) {
-	spsWEB := removeH264or5EmulationBytes(data)
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("RawSPS decode panic；r = %v \n %s", r, debug.Stack())
+		}
+	}()
+
+	spsWEB := utils.RemoveH264or5EmulationBytes(data)
 	if len(spsWEB) < 4 {
 		return errors.New("The data is not enough")
 	}
@@ -271,56 +281,41 @@ func (sps *RawSPS) Decode(data []byte) (err error) {
 	}
 
 	// 前三个字节
-	sps.ProfileIdc, _ = r.ReadUint8(8)
+	sps.ProfileIdc = r.ReadUint8(8)
 
-	sps.ConstraintSet0Flag, _ = r.ReadBit()
-	sps.ConstraintSet1Flag, _ = r.ReadBit()
-	sps.ConstraintSet2Flag, _ = r.ReadBit()
-	sps.ConstraintSet3Flag, _ = r.ReadBit()
-	sps.ConstraintSet4Flag, _ = r.ReadBit()
-	sps.ConstraintSet5Flag, _ = r.ReadBit()
-	sps.ReservedZero2Bits, _ = r.ReadUint8(2)
+	sps.ConstraintSet0Flag = r.ReadBit()
+	sps.ConstraintSet1Flag = r.ReadBit()
+	sps.ConstraintSet2Flag = r.ReadBit()
+	sps.ConstraintSet3Flag = r.ReadBit()
+	sps.ConstraintSet4Flag = r.ReadBit()
+	sps.ConstraintSet5Flag = r.ReadBit()
+	sps.ReservedZero2Bits = r.ReadUint8(2)
 
-	sps.LevelIdc, _ = r.ReadUint8(8)
+	sps.LevelIdc = r.ReadUint8(8)
 
 	// seq_parameter_set_id
-	if err = ue8(r, &sps.SeqParameterSetID); err != nil {
-		return
-	}
+	sps.SeqParameterSetID = r.ReadUe8()
 
 	if sps.ProfileIdc == 100 || sps.ProfileIdc == 110 ||
 		sps.ProfileIdc == 122 || sps.ProfileIdc == 244 ||
 		sps.ProfileIdc == 44 || sps.ProfileIdc == 83 ||
 		sps.ProfileIdc == 86 || sps.ProfileIdc == 118 {
-
-		if err = ue8(r, &sps.ChromaFormatIdc); err != nil {
-			return
-		}
+		sps.ChromaFormatIdc = r.ReadUe8()
 
 		if sps.ChromaFormatIdc == 3 {
 			// separate_colour_plane_flag
-			if sps.SeparateColourPlaneFlag, err = r.ReadBit(); err != nil {
-				return
-			}
+			sps.SeparateColourPlaneFlag = r.ReadBit()
 		} else {
 			sps.SeparateColourPlaneFlag = 0
 		}
 
-		if err = ue8(r, &sps.BitDepthLumaMinus8); err != nil {
-			return
-		}
-		if err = ue8(r, &sps.BitDepthChromaMinus8); err != nil {
-			return
-		}
+		sps.BitDepthLumaMinus8 = r.ReadUe8()
+		sps.BitDepthChromaMinus8 = r.ReadUe8()
 
 		// qpprime_y_zero_transform_bypass_flag
-		if sps.QpprimeYZeroTransformBypassFlag, err = r.ReadBit(); err != nil {
-			return
-		}
+		sps.QpprimeYZeroTransformBypassFlag = r.ReadBit()
 
-		if sps.SeqScalingMatrixPresentFlag, err = r.ReadBit(); err != nil {
-			return
-		}
+		sps.SeqScalingMatrixPresentFlag = r.ReadBit()
 
 		if sps.SeqScalingMatrixPresentFlag != 0 {
 			maxI := 8
@@ -329,9 +324,7 @@ func (sps *RawSPS) Decode(data []byte) (err error) {
 			}
 
 			for i := 0; i < maxI; i++ {
-				if sps.SeqScalingListPresentFlag[i], err = r.ReadBit(); err != nil {
-					return
-				}
+				sps.SeqScalingListPresentFlag[i] = r.ReadBit()
 				if sps.SeqScalingListPresentFlag[i] != 0 {
 					sps.scanList(r, i)
 				}
@@ -350,109 +343,70 @@ func (sps *RawSPS) Decode(data []byte) (err error) {
 	}
 
 	// log2_max_frame_num_minus4
-	if err = ue8(r, &sps.Log2MaxFrameNumMinus4); err != nil {
-		return
-	}
+	sps.Log2MaxFrameNumMinus4 = r.ReadUe8()
 
 	// pic_order_cnt_type
-	if err = ue8(r, &sps.PicOrderCntType); err != nil {
-		return
-	}
+	sps.PicOrderCntType = r.ReadUe8()
 	if sps.PicOrderCntType == 0 {
 		// log2_max_pic_order_cnt_lsb_minus4
-		if err = ue8(r, &sps.Log2MaxPicOrderCntLsbMinus4); err != nil {
-			return
-		}
+		sps.Log2MaxPicOrderCntLsbMinus4 = r.ReadUe8()
 	} else if sps.PicOrderCntType == 1 {
 		// delta_pic_order_always_zero_flag
-		if sps.DeltaPicOrderAlwaysZeroFlag, err = r.ReadBit(); err != nil {
-			return
-		}
+		sps.DeltaPicOrderAlwaysZeroFlag = r.ReadBit()
 		// offset_for_non_ref_pic
-		if err = se32(r, &sps.OffsetForNonRefPic); err != nil {
-			return
-		}
+		sps.OffsetForNonRefPic = r.ReadSe()
 
 		// offset_for_top_to_bottom_field
-		if err = se32(r, &sps.OffsetForTopToBottomField); err != nil {
-			return
-		}
+		sps.OffsetForTopToBottomField = r.ReadSe()
 
 		// num_ref_frames_in_pic_order_cnt_cycle
-		if err = ue8(r, &sps.NumRefFramesInPicOrderCntCycle); err != nil {
-			return
-		}
+		sps.NumRefFramesInPicOrderCntCycle = r.ReadUe8()
 
 		for i := uint8(0); i < sps.NumRefFramesInPicOrderCntCycle; i++ {
 			// offset_for_ref_frame
-			if err = se32(r, &sps.OffsetForRefFrame[i]); err != nil {
-				return
-			}
+			sps.OffsetForRefFrame[i] = r.ReadSe()
 		}
 	}
 
 	// max_num_ref_frames
-	if err = ue8(r, &sps.MaxNumRefFrames); err != nil {
-		return
-	}
+	sps.MaxNumRefFrames = r.ReadUe8()
 
 	// gaps_in_frame_num_allowed_flag
-	if sps.GapsInFrameNumAllowedFlag, err = r.ReadBit(); err != nil {
-		return
-	}
+	sps.GapsInFrameNumAllowedFlag = r.ReadBit()
 
 	// pic_width_in_mbs_minus1
-	if err = ue16(r, &sps.PicWidthInMbsMinus1); err != nil {
-		return
-	}
+	sps.PicWidthInMbsMinus1 = r.ReadUe16()
 
 	// pic_height_in_map_units_minus1
-	if err = ue16(r, &sps.PicHeightInMapUnitsMinus1); err != nil {
-		return
-	}
+	sps.PicHeightInMapUnitsMinus1 = r.ReadUe16()
 
 	// frame_mbs_only_flag
-	if sps.FrameMbsOnlyFlag, err = r.ReadBit(); err != nil {
-		return
-	}
+	sps.FrameMbsOnlyFlag = r.ReadBit()
+
 	if sps.FrameMbsOnlyFlag == 0 {
 		// mb_adaptive_frame_field_flag
-		if sps.MbAdaptiveFrameFieldFlag, err = r.ReadBit(); err != nil {
-			return
-		}
+		sps.MbAdaptiveFrameFieldFlag = r.ReadBit()
 	}
 
 	// direct_8x8_inference_flag
-	if sps.Direct8x8InferenceFlag, err = r.ReadBit(); err != nil {
-		return
-	}
+	sps.Direct8x8InferenceFlag = r.ReadBit()
 
 	// frame_cropping_flag
-	if sps.FrameCroppingFlag, err = r.ReadBit(); err != nil {
-		return
-	}
+	sps.FrameCroppingFlag = r.ReadBit()
+
 	if sps.FrameCroppingFlag == 1 {
 		// frame_crop_left_offset
-		if err = ue16(r, &sps.FrameCropLeftOffset); err != nil {
-			return
-		}
+		sps.FrameCropLeftOffset = r.ReadUe16()
 		// frame_crop_right_offset
-		if err = ue16(r, &sps.FrameCropRightOffset); err != nil {
-			return
-		}
+		sps.FrameCropRightOffset = r.ReadUe16()
 		// frame_crop_top_offset
-		if err = ue16(r, &sps.FrameCropTopOffset); err != nil {
-			return
-		} // frame_crop_bottom_offset
-		if err = ue16(r, &sps.FrameCropBottomOffset); err != nil {
-			return
-		}
+		sps.FrameCropTopOffset = r.ReadUe16()
+		// frame_crop_bottom_offset
+		sps.FrameCropBottomOffset = r.ReadUe16()
 	}
 
 	// vui_parameters_present_flag
-	if sps.VuiParametersPresentFlag, err = r.ReadBit(); err != nil {
-		return
-	}
+	sps.VuiParametersPresentFlag = r.ReadBit()
 
 	// vui parameters
 	if sps.VuiParametersPresentFlag == 1 {
@@ -479,9 +433,7 @@ func (sps *RawSPS) scanList(r *bits.Reader, i int) (err error) {
 
 	scale := 8
 	for i = 0; i < sizeOfScan; i++ {
-		if err = se8(r, &current[i]); err != nil {
-			return
-		}
+		current[i] = r.ReadSe8()
 		scale = (scale + int(current[i]) + 256) % 256
 		if scale == 0 {
 			break
@@ -492,9 +444,9 @@ func (sps *RawSPS) scanList(r *bits.Reader, i int) (err error) {
 }
 
 func (h *RawNALUnitHeader) decode(r *bits.Reader) (err error) {
-	h.ForbiddenZeroBit, _ = r.ReadBit()
-	h.NalRefIdc, _ = r.ReadUint8(2)
-	h.NalUnitType, _ = r.ReadUint8(5)
+	h.ForbiddenZeroBit = r.ReadBit()
+	h.NalRefIdc = r.ReadUint8(2)
+	h.NalUnitType = r.ReadUint8(5)
 
 	if h.NalUnitType == NalPrefix ||
 		h.NalUnitType == NalExtenSlice ||
@@ -505,58 +457,31 @@ func (h *RawNALUnitHeader) decode(r *bits.Reader) (err error) {
 }
 
 func (vui *RawVUI) decode(r *bits.Reader, sps *RawSPS) (err error) {
-	if err = flag(r, &vui.AspectRatioInfoPresentFlag); err != nil {
-		return
-	}
+	vui.AspectRatioInfoPresentFlag = r.ReadBit()
 	if vui.AspectRatioInfoPresentFlag == 1 {
-		if err = u8(r, 8, &vui.AspectRatioIdc); err != nil {
-			return
-		}
+		vui.AspectRatioIdc = r.ReadUint8(8)
 		if vui.AspectRatioIdc == 255 {
-			if err = u16(r, 16, &vui.SarWidth); err != nil {
-				return
-			}
-			if err = u16(r, 16, &vui.SarHeight); err != nil {
-				return
-			}
+			vui.SarWidth = r.ReadUint16(16)
+			vui.SarHeight = r.ReadUint16(16)
 		}
 	} else {
 		vui.AspectRatioIdc = 0
 	}
 
-	if err = flag(r, &vui.OverscanInfoPresentFlag); err != nil {
-		return
-	}
+	vui.OverscanInfoPresentFlag = r.ReadBit()
 	if vui.OverscanInfoPresentFlag == 1 {
-		if err = flag(r, &vui.OverscanAppropriateFlag); err != nil {
-			return
-		}
+		vui.OverscanAppropriateFlag = r.ReadBit()
 	}
 
-	if err = flag(r, &vui.VideoSignalTypePresentFlag); err != nil {
-		return
-	}
+	vui.VideoSignalTypePresentFlag = r.ReadBit()
 	if vui.VideoSignalTypePresentFlag == 1 {
-		if err = u8(r, 3, &vui.VideoFormat); err != nil {
-			return
-		}
-		if err = flag(r, &vui.VideoFullRangeFlag); err != nil {
-			return
-		}
-
-		if err = flag(r, &vui.ColourDescriptionPresentFlag); err != nil {
-			return
-		}
+		vui.VideoFormat = r.ReadUint8(3)
+		vui.VideoFullRangeFlag = r.ReadBit()
+		vui.ColourDescriptionPresentFlag = r.ReadBit()
 		if vui.ColourDescriptionPresentFlag == 1 {
-			if err = u8(r, 8, &vui.ColourPrimaries); err != nil {
-				return
-			}
-			if err = u8(r, 8, &vui.TransferCharacteristics); err != nil {
-				return
-			}
-			if err = u8(r, 8, &vui.MatrixCoefficients); err != nil {
-				return
-			}
+			vui.ColourPrimaries = r.ReadUint8(8)
+			vui.TransferCharacteristics = r.ReadUint8(8)
+			vui.MatrixCoefficients = r.ReadUint8(8)
 		}
 	} else {
 		vui.VideoFormat = 5
@@ -566,50 +491,32 @@ func (vui *RawVUI) decode(r *bits.Reader, sps *RawSPS) (err error) {
 		vui.MatrixCoefficients = 2
 	}
 
-	if err = flag(r, &vui.ChromaLocInfoPresentFlag); err != nil {
-		return
-	}
+	vui.ChromaLocInfoPresentFlag = r.ReadBit()
 	if vui.ChromaLocInfoPresentFlag == 1 {
-		if err = ue8(r, &vui.ChromaSampleLocTypeTopField); err != nil {
-			return
-		}
-		if err = ue8(r, &vui.ChromaSampleLocTypeBottomField); err != nil {
-			return
-		}
+		vui.ChromaSampleLocTypeTopField = r.ReadUe8()
+		vui.ChromaSampleLocTypeBottomField = r.ReadUe8()
 	} else {
 		vui.ChromaSampleLocTypeTopField = 0
 		vui.ChromaSampleLocTypeBottomField = 0
 	}
 
-	if err = flag(r, &vui.TimingInfoPresentFlag); err != nil {
-		return
-	}
+	vui.TimingInfoPresentFlag = r.ReadBit()
 	if vui.TimingInfoPresentFlag == 1 {
-		if err = u32(r, 32, &vui.NumUnitsInTick); err != nil {
-			return
-		}
-		if err = u32(r, 32, &vui.TimeScale); err != nil {
-			return
-		}
-		if err = flag(r, &vui.FixedFrameRateFlag); err != nil {
-			return
-		}
+		vui.NumUnitsInTick = r.ReadUint32(32)
+		vui.TimeScale = r.ReadUint32(32)
+		vui.FixedFrameRateFlag = r.ReadBit()
 	} else {
 		vui.FixedFrameRateFlag = 0
 	}
 
-	if err = flag(r, &vui.NalHrdParametersPresentFlag); err != nil {
-		return
-	}
+	vui.NalHrdParametersPresentFlag = r.ReadBit()
 	if vui.NalHrdParametersPresentFlag == 1 {
 		if err = vui.NalHrdParameters.decode(r); err != nil {
 			return
 		}
 	}
 
-	if err = flag(r, &vui.VclHrdParametersPresentFlag); err != nil {
-		return
-	}
+	vui.VclHrdParametersPresentFlag = r.ReadBit()
 	if vui.VclHrdParametersPresentFlag == 1 {
 		if err = vui.VclHrdParameters.decode(r); err != nil {
 			return
@@ -618,44 +525,24 @@ func (vui *RawVUI) decode(r *bits.Reader, sps *RawSPS) (err error) {
 
 	if vui.NalHrdParametersPresentFlag == 1 ||
 		vui.VclHrdParametersPresentFlag == 1 {
-		if err = flag(r, &vui.LowDelayHrdFlag); err != nil {
-			return
-		}
+		vui.LowDelayHrdFlag = r.ReadBit()
 	} else {
 		vui.LowDelayHrdFlag = 1 - vui.FixedFrameRateFlag
 	}
 
-	if err = flag(r, &vui.PicStructPresentFlag); err != nil {
-		return
-	}
+	vui.PicStructPresentFlag = r.ReadBit()
 
-	if err = flag(r, &vui.BitstreamRestrictionFlag); err != nil {
-		return
-	}
+	vui.BitstreamRestrictionFlag = r.ReadBit()
 	if vui.BitstreamRestrictionFlag == 1 {
-		if err = flag(r, &vui.MotionVectorsOverPicBoundariesFlag); err != nil {
-			return
-		}
-		if err = ue8(r, &vui.MaxBytesPerPicDenom); err != nil {
-			return
-		}
-		if err = ue8(r, &vui.MaxBitsPerMbDenom); err != nil {
-			return
-		}
+		vui.MotionVectorsOverPicBoundariesFlag = r.ReadBit()
+		vui.MaxBytesPerPicDenom = r.ReadUe8()
+		vui.MaxBitsPerMbDenom = r.ReadUe8()
 		// The current version of the standard constrains this to be in
 		// [0,15], but older versions allow 16.
-		if err = ue8(r, &vui.Log2MaxMvLengthHorizontal); err != nil {
-			return
-		}
-		if err = ue8(r, &vui.Log2MaxMvLengthVertical); err != nil {
-			return
-		}
-		if err = ue8(r, &vui.MaxNumReorderFrames); err != nil {
-			return
-		}
-		if err = ue8(r, &vui.MaxDecFrameBuffering); err != nil {
-			return
-		}
+		vui.Log2MaxMvLengthHorizontal = r.ReadUe8()
+		vui.Log2MaxMvLengthVertical = r.ReadUe8()
+		vui.MaxNumReorderFrames = r.ReadUe8()
+		vui.MaxDecFrameBuffering = r.ReadUe8()
 	} else {
 		vui.MotionVectorsOverPicBoundariesFlag = 1
 		vui.MaxBytesPerPicDenom = 2
@@ -716,40 +603,19 @@ func (vui *RawVUI) parametersDefault(sps *RawSPS) (err error) {
 }
 
 func (hrd *RawHRD) decode(r *bits.Reader) (err error) {
-	if err = ue8(r, &hrd.CpbCntMinus1); err != nil {
-		return
-	}
-	if err = u8(r, 4, &hrd.BitRateScale); err != nil {
-		return
-	}
-	if err = u8(r, 4, &hrd.CpbSizeScale); err != nil {
-		return
-	}
+	hrd.CpbCntMinus1 = r.ReadUe8()
+	hrd.BitRateScale = r.ReadUint8(4)
+	hrd.CpbSizeScale = r.ReadUint8(4)
 
 	for i := 0; i <= int(hrd.CpbCntMinus1); i++ {
-		if err = ue32(r, &hrd.BitRateValueMinus1[i]); err != nil {
-			return
-		}
-		if err = ue32(r, &hrd.CpbSizeValueMinus1[i]); err != nil {
-			return
-		}
-		if err = flag(r, &hrd.CbrFlag[i]); err != nil {
-			return
-		}
+		hrd.BitRateValueMinus1[i] = r.ReadUe()
+		hrd.CpbSizeValueMinus1[i] = r.ReadUe()
+		hrd.CbrFlag[i] = r.ReadBit()
 	}
 
-	if err = u8(r, 5, &hrd.InitialCpbRemovalDelayLengthMinus1); err != nil {
-		return
-	}
-	if err = u8(r, 5, &hrd.CpbRemovalDelayLengthMinus1); err != nil {
-		return
-	}
-	if err = u8(r, 5, &hrd.DpbOutputDelayLengthMinus1); err != nil {
-		return
-	}
-	if err = u8(r, 5, &hrd.TimeOffsetLength); err != nil {
-		return
-	}
-
+	hrd.InitialCpbRemovalDelayLengthMinus1 = r.ReadUint8(5)
+	hrd.CpbRemovalDelayLengthMinus1 = r.ReadUint8(5)
+	hrd.DpbOutputDelayLengthMinus1 = r.ReadUint8(5)
+	hrd.TimeOffsetLength = r.ReadUint8(5)
 	return
 }

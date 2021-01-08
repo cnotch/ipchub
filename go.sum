@@ -2,8 +2,6 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/cnotch/apirouter v0.0.0-20200731232942-89e243a791f3 h1:Y8fe6nOk/UMsVZOPPLEVd9axxbIuBBjhZ+g6RpMz6vI=
 github.com/cnotch/apirouter v0.0.0-20200731232942-89e243a791f3/go.mod h1:5deJPLON/x/s2dLOQfuKS0lenhOIT4xX0pvtN/OEIuY=
-github.com/cnotch/bitutil v0.0.0-20200512012328-08db448fb960 h1:mZGYgYjlZOh+oMLvv3uxT61J0y8SWStIoOaqWU9S3Lk=
-github.com/cnotch/bitutil v0.0.0-20200512012328-08db448fb960/go.mod h1:ivZKsbAhsndNi8A5NFiDkBUY3+lVINm+IXNUnQNn6JM=
 github.com/cnotch/loader v0.0.0-20200405015128-d9d964d09439 h1:iNWyllf6zuby+nDNC6zKEkM7aUFbp4RccfWVdQ3HFfQ=
 github.com/cnotch/loader v0.0.0-20200405015128-d9d964d09439/go.mod h1:oWpDagHB6p+Kqqq7RoRZKyC4XAXft50hR8pbTxdbYYs=
 github.com/cnotch/queue v0.0.0-20200326024423-6e88bdbf2ad4 h1:bU2h1mvmsh6V1gQDGKgA9lHfBMLCmaVs1t2xyloDYHY=
