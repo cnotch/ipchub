@@ -14,7 +14,7 @@ import (
 )
 
 // Pack .
-type Pack = format.Package
+type Pack = format.Packet
 
 type packCache interface {
 	CachePack(pack Pack)

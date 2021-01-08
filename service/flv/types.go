@@ -7,4 +7,4 @@ package flv
 import "github.com/cnotch/ipchub/av/format"
 
 // Pack .
-type Pack = format.Package
+type Pack = format.Packet

@@ -4,7 +4,7 @@
 
 package format
 
-// Package 表示流媒体包
-type Package interface {
+// Packet 表示流媒体包
+type Packet interface {
 	Size() int // 包长度
 }

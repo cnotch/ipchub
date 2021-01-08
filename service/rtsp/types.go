@@ -11,7 +11,7 @@ import (
 )
 
 // Pack .
-type Pack = format.Package
+type Pack = format.Packet
 
 // .
 var (
