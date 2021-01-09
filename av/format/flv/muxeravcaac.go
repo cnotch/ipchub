@@ -132,16 +132,6 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *codec.Frame) error {
 	if frame.Payload[0]&0x1F == h264.NalSps {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
-			var rawSps h264.RawSPS
-			err := rawSps.Decode(muxer.videoMeta.Sps)
-			if err != nil {
-				return err
-			}
-
-			muxer.videoMeta.Width = rawSps.Width()
-			muxer.videoMeta.Height = rawSps.Height()
-			muxer.videoMeta.FrameRate = rawSps.FrameRate()
-			muxer.dtsStep = 1000.0 / muxer.videoMeta.FrameRate
 		}
 		return muxer.muxSequenceHeaderTag()
 	}
@@ -277,11 +267,16 @@ func (muxer *MuxerAvcAac) muxSequenceHeaderTag() error {
 		return nil
 	}
 
-	if len(muxer.videoMeta.Sps) == 0 || len(muxer.videoMeta.Pps) == 0 {
+	if !h264.MetadataIsReady(&muxer.videoMeta) {
 		// not enough
 		return nil
 	}
 
+	if muxer.videoMeta.FixedFrameRate {
+		muxer.dtsStep = 1000.0 / muxer.videoMeta.FrameRate
+	} else { // TODO:
+		muxer.dtsStep = 1000.0 / 30
+	}
 	muxer.spsMuxed = true
 
 	record := NewAVCDecoderConfigurationRecord(muxer.videoMeta.Sps, muxer.videoMeta.Pps)

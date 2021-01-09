@@ -32,6 +32,7 @@ type MuxerAvcAac struct {
 	recvQueue     *queue.SyncQueue
 	tsframeWriter FrameWriter
 	closed        bool
+	metaReady      bool
 	basePts       int64
 	nextDts       float64
 	dtsStep       float64
@@ -141,16 +142,7 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *codec.Frame) (err error) {
 		if len(muxer.videoMeta.Sps) == 0 {
 			muxer.videoMeta.Sps = frame.Payload
 		}
-		var rawSps h264.RawSPS
-		err = rawSps.Decode(muxer.videoMeta.Sps)
-		if err != nil {
-			return
-		}
-
-		muxer.videoMeta.Width = rawSps.Width()
-		muxer.videoMeta.Height = rawSps.Height()
-		muxer.videoMeta.FrameRate = rawSps.FrameRate()
-		muxer.dtsStep = 1000.0 / muxer.videoMeta.FrameRate
+		muxer.preparMetadata()
 		return
 	}
 
@@ -158,6 +150,7 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *codec.Frame) (err error) {
 		if len(muxer.videoMeta.Pps) == 0 {
 			muxer.videoMeta.Pps = frame.Payload
 		}
+		muxer.preparMetadata()
 		return
 	}
 
@@ -181,6 +174,24 @@ func (muxer *MuxerAvcAac) muxVideoTag(frame *codec.Frame) (err error) {
 	tsframe.prepareAvcHeader(muxer.videoMeta.Sps, muxer.videoMeta.Pps)
 
 	return muxer.tsframeWriter.WriteMpegtsFrame(tsframe)
+}
+
+func (muxer *MuxerAvcAac) preparMetadata() {
+	if muxer.metaReady {
+		return
+	}
+
+	if !h264.MetadataIsReady(&muxer.videoMeta) {
+		// not enough
+		return
+	}
+
+	if muxer.videoMeta.FixedFrameRate {
+		muxer.dtsStep = 1000.0 / muxer.videoMeta.FrameRate
+	} else { // TODO:
+		muxer.dtsStep = 1000.0 / 30
+	}
+	muxer.metaReady = true
 }
 
 func (muxer *MuxerAvcAac) muxAudioTag(frame *codec.Frame) error {
