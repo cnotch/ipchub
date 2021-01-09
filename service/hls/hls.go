@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/media"
 	"github.com/cnotch/xlog"
 )
@@ -34,7 +35,8 @@ func GetM3u8(logger *xlog.Logger, path string, token string, addr string, w http
 	var cont []byte
 
 	// 最多等待完成 30 秒
-	for i := 0; i < 30; i++ {
+	waitSeconds := int(1.5 * float64(3*config.HlsFragment()))
+	for i := 0; i < waitSeconds; i++ {
 		cont, err = c.M3u8(token)
 		if err == nil {
 			break

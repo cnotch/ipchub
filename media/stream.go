@@ -56,7 +56,7 @@ type Stream struct {
 	flvConsumptions      consumptions
 	flvCache             packCache
 	tsMuxer              *mpegts.MuxerAvcAac
-	hlsMuxer             *hls.Muxer
+	hlsPlaylist          *hls.Playlist
 	attrs                map[string]string // 流属性
 	multicast            Multicastable
 	hls                  Hlsable
@@ -128,20 +128,21 @@ func (s *Stream) prepareOtherStream() {
 
 	// prepare av.Frame -> mpegts.Frame
 	if s.Video.Codec == "H264" {
-		hlsMuxer, err := hls.NewMuxer(s.path,
+		hlsPlaylist := hls.NewPlaylist()
+		sg, err := hls.NewSegmentGenerator(hlsPlaylist, s.path,
 			config.HlsFragment(),
 			config.HlsPath(), s.Audio.SampleRate,
 			s.logger.With(xlog.Fields(xlog.F("extra", "hls.Muxer"))))
 		if err != nil {
 			return
 		}
-		tsMuxer, err2 := mpegts.NewMuxerAvcAac(s.Video, s.Audio, hlsMuxer,
+		tsMuxer, err2 := mpegts.NewMuxerAvcAac(s.Video, s.Audio, sg,
 			s.logger.With(xlog.Fields(xlog.F("extra", "ts.Muxer"))))
 		if err2 != nil {
 			return
 		}
 		s.tsMuxer = tsMuxer
-		s.hlsMuxer = hlsMuxer
+		s.hlsPlaylist = hlsPlaylist
 	}
 }
 
@@ -183,6 +184,7 @@ func (s *Stream) close(status int32) error {
 	// 关闭 hls
 	if s.tsMuxer != nil {
 		s.tsMuxer.Close()
+		s.hlsPlaylist.Close()
 	}
 
 	// 关闭 flv 消费者和 Muxer
@@ -246,7 +248,7 @@ func (s *Stream) Multicastable() Multicastable {
 
 // Hlsable 返回支持hls能力，不支持返回nil
 func (s *Stream) Hlsable() Hlsable {
-	return s.hlsMuxer
+	return s.hlsPlaylist
 }
 
 func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra string, useGopCache bool) CID {
