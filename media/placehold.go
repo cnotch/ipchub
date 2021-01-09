@@ -45,15 +45,15 @@ func (emptyFlvMuxer) TypeFlags() byte                  { return 0 }
 func (emptyFlvMuxer) WriteFrame(frame *codec.Frame) error { return nil }
 func (emptyFlvMuxer) Close() error                     { return nil }
 
-type frameConverter interface {
+type rtpDemuxer interface {
 	rtp.PacketWriter
 	io.Closer
 }
 
-var _ frameConverter = emptyFrameConverter{}
+var _ rtpDemuxer = emptyRtpDemuxer{}
 
-type emptyFrameConverter struct{}
+type emptyRtpDemuxer struct{}
 
-func (emptyFrameConverter) TypeFlags() byte               { return 0 }
-func (emptyFrameConverter) WriteRtpPacket(*rtp.Packet) error { return nil }
-func (emptyFrameConverter) Close() error                  { return nil }
+func (emptyRtpDemuxer) TypeFlags() byte               { return 0 }
+func (emptyRtpDemuxer) WriteRtpPacket(*rtp.Packet) error { return nil }
+func (emptyRtpDemuxer) Close() error                  { return nil }

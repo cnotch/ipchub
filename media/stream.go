@@ -51,7 +51,7 @@ type Stream struct {
 	consumerSequenceSeed uint32
 	consumptions         consumptions // 消费者列表
 	cache                packCache    // 媒体包缓存
-	frameConverter       frameConverter
+	rtpDemuxer           rtpDemuxer
 	flvMuxer             flvMuxer
 	flvConsumptions      consumptions
 	flvCache             packCache
@@ -110,9 +110,9 @@ func (s *Stream) prepareOtherStream() {
 		audioExtractor = rtp.NewAacDepacketizer(s, s.Audio.SampleRate)
 	}
 	if videoExtractor == nil && audioExtractor == nil {
-		s.frameConverter = emptyFrameConverter{}
+		s.rtpDemuxer = emptyRtpDemuxer{}
 	} else {
-		s.frameConverter = rtp.NewDemuxer(videoExtractor, audioExtractor,
+		s.rtpDemuxer = rtp.NewDemuxer(videoExtractor, audioExtractor,
 			s.logger.With(xlog.Fields(xlog.F("extra", "rtp2frame"))))
 	}
 
@@ -191,7 +191,7 @@ func (s *Stream) close(status int32) error {
 	s.flvMuxer.Close()
 
 	// 关闭 av.Frame 转换器
-	s.frameConverter.Close()
+	s.rtpDemuxer.Close()
 
 	s.consumptions.RemoveAndCloseAll()
 	s.cache.Reset()
@@ -210,7 +210,7 @@ func (s *Stream) WriteRtpPacket(packet *rtp.Packet) error {
 	s.cache.CachePack(packet)
 	s.consumptions.SendToAll(packet)
 
-	s.frameConverter.WriteRtpPacket(packet)
+	s.rtpDemuxer.WriteRtpPacket(packet)
 	return nil
 }
 
