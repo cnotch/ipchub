@@ -12,6 +12,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/cnotch/scheduler"
 )
 
 const hlsRemainSegments = 3
@@ -127,10 +129,17 @@ func (pl *Playlist) addSegment(seg *segment) {
 }
 
 func (pl *Playlist) clearSegments(remain int) {
-	// TODO: 延时异步删除？
 	if len(pl.segments) > remain {
 		for i := 0; i < len(pl.segments)-remain; i++ {
-			pl.segments[i].file.delete()
+			if err := pl.segments[i].file.delete(); err != nil {
+				// 延时异步删除
+				file := pl.segments[i].file
+				duration := time.Duration(pl.segments[i].duration * float64(time.Second))
+				uri := pl.segments[i].uri
+				scheduler.AfterFunc(duration, func() {
+					file.delete()
+				}, "delete "+uri)
+			}
 			pl.segments[i] = nil
 		}
 		copy(pl.segments[:remain], pl.segments[len(pl.segments)-remain:])
