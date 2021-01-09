@@ -67,8 +67,8 @@ func (r *Reader) readTagSize() (tagSize uint32, err error) {
 	return
 }
 
-// ReadTag read flv tag
-func (r *Reader) ReadTag() (*Tag, error) {
+// ReadFlvTag read flv tag
+func (r *Reader) ReadFlvTag() (*Tag, error) {
 
 	var tag Tag
 	if err := tag.Read(r.r); err != nil {
@@ -137,8 +137,8 @@ func (w *Writer) writeTagSize(tagSize uint32) error {
 	return nil
 }
 
-// WriteTag write flv tag
-func (w *Writer) WriteTag(tag *Tag) error {
+// WriteFlvTag write flv tag
+func (w *Writer) WriteFlvTag(tag *Tag) error {
 	// 记录第一个Tag的时间戳
 	if w.timestampDelta == uninitializedTimestampDelta {
 		w.timestampDelta = tag.Timestamp

@@ -29,7 +29,7 @@ func (c *httpFlvConsumer) Consume(pack Pack) {
 		return
 	}
 
-	err := c.w.WriteTag(pack.(*flv.Tag))
+	err := c.w.WriteFlvTag(pack.(*flv.Tag))
 
 	if err != nil {
 		c.logger.Errorf("http-flv: send tag failed; %v", err)
