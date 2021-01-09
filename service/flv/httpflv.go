@@ -51,7 +51,7 @@ func (c *httpFlvConsumer) Close() (err error) {
 // ConsumeByHTTP 处理 http 方式访问流媒体
 func ConsumeByHTTP(logger *xlog.Logger, path string, addr string, w http.ResponseWriter) {
 	logger = logger.With(xlog.Fields(
-		xlog.F("path", path),
+		xlog.F("path", path),xlog.F("ext", "flv"),
 		xlog.F("addr", addr)))
 
 	stream := media.GetOrCreate(path)

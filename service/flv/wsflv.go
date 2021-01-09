@@ -53,7 +53,7 @@ func (c *wsFlvConsumer) Type() string {
 // ConsumeByWebsocket 处理 websocket 方式访问流媒体
 func ConsumeByWebsocket(logger *xlog.Logger, path string, addr string, conn websocket.Conn) {
 	logger = logger.With(xlog.Fields(
-		xlog.F("path", path),
+		xlog.F("path", path),xlog.F("ext", "flv"),
 		xlog.F("addr", addr)))
 
 	stream := media.GetOrCreate(path)

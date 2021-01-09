@@ -18,6 +18,12 @@ import (
 
 // GetM3u8 .
 func GetM3u8(logger *xlog.Logger, path string, token string, addr string, w http.ResponseWriter) {
+	logger = logger.With(xlog.Fields(
+		xlog.F("path", path), xlog.F("ext", "m3u8"),
+		xlog.F("addr", addr)))
+
+	logger.Info("http-hls: access playlist")
+
 	// 需要手动启动,如果需要转换或拉流，很耗时
 	var c media.Hlsable
 	s := media.GetOrCreate(path)
@@ -64,6 +70,12 @@ func GetM3u8(logger *xlog.Logger, path string, token string, addr string, w http
 
 // GetTS .
 func GetTS(logger *xlog.Logger, path string, addr string, w http.ResponseWriter) {
+	logger = logger.With(xlog.Fields(
+		xlog.F("path", path), xlog.F("ext", "ts"),
+		xlog.F("addr", addr)))
+
+	logger.Info("http-hls: access segment file")
+
 	i := strings.LastIndex(path, "/")
 	if i < 0 {
 		logger.Errorf("http-hls: path illegal `%s`", path)

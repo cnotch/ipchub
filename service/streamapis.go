@@ -13,7 +13,6 @@ import (
 	"github.com/cnotch/ipchub/provider/auth"
 	"github.com/cnotch/ipchub/service/flv"
 	"github.com/cnotch/ipchub/service/hls"
-	"github.com/cnotch/xlog"
 
 	"github.com/cnotch/apirouter"
 	"github.com/cnotch/ipchub/utils/scan"
@@ -53,9 +52,6 @@ func (s *Service) onWebSocketRequest(w http.ResponseWriter, r *http.Request) {
 func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
 	// 获取文件后缀和流路径
 	streamPath, ext := extractStreamPathAndExt(r.URL.Path)
-	s.logger.Info("http access stream media.",
-		xlog.F("path", streamPath),
-		xlog.F("ext", ext))
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	switch ext {
