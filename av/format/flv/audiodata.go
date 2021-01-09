@@ -130,6 +130,8 @@ type AudioData struct {
 	Body          []byte // 原始音频
 }
 
+var _ TagData = &AudioData{}
+
 // Unmarshal .
 // Note: Unmarshal not copy the data
 func (audioData *AudioData) Unmarshal(data []byte) error {

@@ -40,6 +40,8 @@ type ScriptData struct {
 	Value interface{}
 }
 
+var _ TagData = &ScriptData{}
+
 // Unmarshal .
 func (scriptData *ScriptData) Unmarshal(data []byte) (err error) {
 	buff := bytes.NewBuffer(data)

@@ -101,6 +101,8 @@ type VideoData struct {
 	Body            []byte // 原始视频
 }
 
+var _ TagData = &VideoData{}
+
 // Unmarshal .
 // Note: Unmarshal not copy the data
 func (videoData *VideoData) Unmarshal(data []byte) error {
