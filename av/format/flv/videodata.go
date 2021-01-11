@@ -48,7 +48,7 @@ const (
 	CodecIDScreenVideoVersion2    = 6
 	CodecIDAVC                    = 7 // h264
 	CodecIDReserved2              = 8
-	CodecIDHEVC                   = 13 // 事实扩展标识 h265
+	CodecIDHEVC                   = 12 // 事实扩展标识 h265
 )
 
 // CodecIDName 视频编解码器名称
