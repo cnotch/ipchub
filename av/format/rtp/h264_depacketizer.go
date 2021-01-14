@@ -13,17 +13,19 @@ import (
 
 type h264Depacketizer struct {
 	fragments []*Packet // 分片包
+	video     *codec.VideoMeta
 	w         codec.FrameWriter
 	syncClock SyncClock
 }
 
 // NewH264Depacketizer 实例化 H264 帧提取器
-func NewH264Depacketizer(w codec.FrameWriter) Depacketizer {
+func NewH264Depacketizer(video *codec.VideoMeta, w codec.FrameWriter) depacketizer {
 	fe := &h264Depacketizer{
+		video:     video,
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
 	}
-	fe.syncClock.RTPTimeUnit = 1000.0 / 90000
+	fe.syncClock.RTPTimeUnit = 1000.0 / float64(video.ClockRate)
 	return fe
 }
 
@@ -63,15 +65,12 @@ func (h264dp *h264Depacketizer) Depacketize(packet *Packet) (err error) {
 		//  |                               +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		//  |                               :...OPTIONAL RTP padding        |
 		//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-		if payload[0]&0x1f == h264.NalFillerData {
-			return
-		}
 		frame := &codec.Frame{
 			MediaType:    codec.MediaTypeVideo,
 			AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
 			Payload:      payload,
 		}
-		err = h264dp.w.WriteFrame(frame)
+		err = h264dp.writeFrame(frame)
 	case naluType == h264.NalStapaInRtp:
 		err = h264dp.depacketizeStapa(packet)
 	case naluType == h264.NalFuAInRtp:
@@ -111,18 +110,17 @@ func (h264dp *h264Depacketizer) depacketizeStapa(packet *Packet) (err error) {
 		}
 
 		off += 2
-		if payload[off]&0x1f != h264.NalFillerData {
-			frame := &codec.Frame{
-				MediaType:    codec.MediaTypeVideo,
-				AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
-				Payload:      make([]byte, nalSize),
-			}
-			copy(frame.Payload, payload[off:])
-			frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
-			if err = h264dp.w.WriteFrame(frame); err != nil {
-				return
-			}
+		frame := &codec.Frame{
+			MediaType:    codec.MediaTypeVideo,
+			AbsTimestamp: h264dp.rtp2ntp(packet.Timestamp),
+			Payload:      make([]byte, nalSize),
 		}
+		copy(frame.Payload, payload[off:])
+		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
+		if err = h264dp.writeFrame(frame); err != nil {
+			return
+		}
+
 		off += int(nalSize)
 		if off >= len(payload) { // 扫描完成
 			break
@@ -152,9 +150,6 @@ func (h264dp *h264Depacketizer) depacketizeFuA(packet *Packet) (err error) {
 	// |S|E|R|  Type   |
 	// +---------------+
 	fuHeader := payload[1]
-	if fuHeader&0x1F == h264.NalFillerData {
-		return
-	}
 
 	if (fuHeader>>7)&1 == 1 { // 第一个分片包
 		h264dp.fragments = h264dp.fragments[:0]
@@ -190,7 +185,7 @@ func (h264dp *h264Depacketizer) depacketizeFuA(packet *Packet) (err error) {
 		// 清空分片缓存
 		h264dp.fragments = h264dp.fragments[:0]
 
-		err = h264dp.w.WriteFrame(frame)
+		err = h264dp.writeFrame(frame)
 	}
 
 	return
@@ -198,4 +193,21 @@ func (h264dp *h264Depacketizer) depacketizeFuA(packet *Packet) (err error) {
 
 func (h264dp *h264Depacketizer) rtp2ntp(timestamp uint32) int64 {
 	return h264dp.syncClock.Rtp2Ntp(timestamp)
+}
+
+func (h264dp *h264Depacketizer) writeFrame(frame *codec.Frame) error {
+	nalType := frame.Payload[0] & 0x1f
+	switch nalType {
+	case h264.NalSps:
+		if len(h264dp.video.Sps) == 0 {
+			h264dp.video.Sps = frame.Payload
+		}
+	case h264.NalPps:
+		if len(h264dp.video.Pps) == 0 {
+			h264dp.video.Pps = frame.Payload
+		}
+	case h264.NalFillerData: // ?ignore...
+		return nil
+	}
+	return h264dp.w.WriteFrame(frame)
 }

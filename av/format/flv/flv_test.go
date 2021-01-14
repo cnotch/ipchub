@@ -42,9 +42,7 @@ func TestFlvWriter(t *testing.T) {
 	writer, err := NewWriter(out, 5)
 	flvMuxer := NewMuxerAvcAac(video, audio, writer, xlog.L())
 
-	h264Depack := rtp.NewH264Depacketizer(flvMuxer)
-	mpesDepack := rtp.NewAacDepacketizer(flvMuxer, audio.SampleRate)
-	rtpDemuxer := rtp.NewDemuxer(h264Depack, mpesDepack, xlog.L())
+	rtpDemuxer,_ := rtp.NewDemuxer(&video,&audio,flvMuxer, xlog.L())
 	channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}
 	for {
 		packet, err := rtp.ReadPacket(reader, channels)

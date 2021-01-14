@@ -17,7 +17,7 @@ type h265Depacketizer struct {
 }
 
 // NewH265Depacketizer 实例化 H265 帧提取器
-func NewH265Depacketizer(video *codec.VideoMeta, w codec.FrameWriter) Depacketizer {
+func NewH265Depacketizer(video *codec.VideoMeta, w codec.FrameWriter) depacketizer {
 	fe := &h265Depacketizer{
 		video:     video,
 		fragments: make([]*Packet, 0, 16),

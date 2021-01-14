@@ -5,44 +5,55 @@
 package rtp
 
 import (
+	"fmt"
 	"runtime/debug"
 
+	"github.com/cnotch/ipchub/av/codec"
 	"github.com/cnotch/queue"
 	"github.com/cnotch/xlog"
 )
 
-// Depacketizer 解包器
-type Depacketizer interface {
+// depacketizer 解包器
+type depacketizer interface {
 	Control(p *Packet) error
 	Depacketize(p *Packet) error
 }
 
 // Demuxer 帧转换器
 type Demuxer struct {
-	closed       bool
-	recvQueue    *queue.SyncQueue
+	closed           bool
+	recvQueue        *queue.SyncQueue
 	depacketizeFuncs [4]func(packet *Packet) error
-	logger       *xlog.Logger
+	logger           *xlog.Logger
 }
 
 func emptyDepacketize(*Packet) error { return nil }
 
 // NewDemuxer 创建 rtp.Packet 解封装处理器。
-func NewDemuxer(videoDepacketizer Depacketizer, audioDepacketizer Depacketizer, logger *xlog.Logger) *Demuxer {
+func NewDemuxer(video *codec.VideoMeta, audio *codec.AudioMeta, fw codec.FrameWriter, logger *xlog.Logger) (*Demuxer, error) {
 	fc := &Demuxer{
 		recvQueue: queue.NewSyncQueue(),
 		closed:    false,
 		logger:    logger,
 	}
 
-	if videoDepacketizer != nil {
-		fc.depacketizeFuncs[ChannelVideo] = videoDepacketizer.Depacketize
-		fc.depacketizeFuncs[ChannelVideoControl] = videoDepacketizer.Control
-	} else {
-		fc.depacketizeFuncs[ChannelVideo] = emptyDepacketize
-		fc.depacketizeFuncs[ChannelVideoControl] = emptyDepacketize
+	var videoDepacketizer, audioDepacketizer depacketizer
+	switch video.Codec {
+	case "H264":
+		videoDepacketizer = NewH264Depacketizer(video, fw)
+	case "H265":
+		videoDepacketizer = NewH265Depacketizer(video, fw)
+	}
+	if videoDepacketizer == nil {
+		return nil, fmt.Errorf("Unsupport video codec type:%s", video.Codec)
 	}
 
+	fc.depacketizeFuncs[ChannelVideo] = videoDepacketizer.Depacketize
+	fc.depacketizeFuncs[ChannelVideoControl] = videoDepacketizer.Control
+
+	if audio.Codec == "AAC" {
+		audioDepacketizer = NewAacDepacketizer(audio, fw)
+	}
 	if audioDepacketizer != nil {
 		fc.depacketizeFuncs[ChannelAudio] = audioDepacketizer.Depacketize
 		fc.depacketizeFuncs[ChannelAudioControl] = audioDepacketizer.Control
@@ -51,11 +62,11 @@ func NewDemuxer(videoDepacketizer Depacketizer, audioDepacketizer Depacketizer, 
 		fc.depacketizeFuncs[ChannelAudioControl] = emptyDepacketize
 	}
 
-	go fc.convert()
-	return fc
+	go fc.process()
+	return fc, nil
 }
 
-func (dm *Demuxer) convert() {
+func (dm *Demuxer) process() {
 	defer func() {
 		defer func() { // 避免 handler 再 panic
 			recover()

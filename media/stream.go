@@ -100,20 +100,17 @@ func NewStream(path string, rawsdp string, options ...Option) *Stream {
 }
 
 func (s *Stream) prepareOtherStream() {
-	// steam(rtp)->frameconverter->stream(frame)->flvmuxer->stream(tag)
+	// steam(rtp)->rtpdemuxer->stream(frame)->flvmuxer->stream(tag)
+
+	s.flvCache = emptyCache{}
+	s.flvMuxer = emptyFlvMuxer{}
+
 	// prepare rtp.Packet -> av.Frame
-	var videoExtractor, audioExtractor rtp.Depacketizer
-	if s.Video.Codec == "H264" {
-		videoExtractor = rtp.NewH264Depacketizer(s)
-	}
-	if s.Audio.Codec == "AAC" {
-		audioExtractor = rtp.NewAacDepacketizer(s, s.Audio.SampleRate)
-	}
-	if videoExtractor == nil && audioExtractor == nil {
+	var err error
+	if s.rtpDemuxer, err = rtp.NewDemuxer(&s.Video, &s.Audio,
+		s, s.logger.With(xlog.Fields(xlog.F("extra", "rtp2frame")))); err != nil {
 		s.rtpDemuxer = emptyRtpDemuxer{}
-	} else {
-		s.rtpDemuxer = rtp.NewDemuxer(videoExtractor, audioExtractor,
-			s.logger.With(xlog.Fields(xlog.F("extra", "rtp2frame"))))
+		return
 	}
 
 	// prepare av.Frame -> flv.Tag
@@ -121,9 +118,6 @@ func (s *Stream) prepareOtherStream() {
 		s.flvCache = cache.NewFlvCache(config.CacheGop())
 		s.flvMuxer = flv.NewMuxerAvcAac(s.Video, s.Audio,
 			s, s.logger.With(xlog.Fields(xlog.F("extra", "frame2flv"))))
-	} else {
-		s.flvCache = emptyCache{}
-		s.flvMuxer = emptyFlvMuxer{}
 	}
 
 	// prepare av.Frame -> mpegts.Frame

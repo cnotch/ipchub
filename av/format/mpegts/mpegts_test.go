@@ -42,9 +42,7 @@ func TestMpegtsWriter(t *testing.T) {
 	writer, err := NewWriter(out)
 	tsMuxer, _ := NewMuxerAvcAac(video, audio, writer, xlog.L())
 
-	h264Depack := rtp.NewH264Depacketizer(tsMuxer)
-	mpesDepack := rtp.NewAacDepacketizer(tsMuxer, audio.SampleRate)
-	rtpDemuxer := rtp.NewDemuxer(h264Depack, mpesDepack, xlog.L())
+	rtpDemuxer,_ := rtp.NewDemuxer(&video, &audio, tsMuxer, xlog.L())
 	channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}
 	for {
 		packet, err := rtp.ReadPacket(reader, channels)
