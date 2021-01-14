@@ -13,8 +13,8 @@ import (
 	"github.com/cnotch/xlog"
 )
 
-// depacketizer 解包器
-type depacketizer interface {
+// Depacketizer 解包器
+type Depacketizer interface {
 	Control(p *Packet) error
 	Depacketize(p *Packet) error
 }
@@ -37,15 +37,14 @@ func NewDemuxer(video *codec.VideoMeta, audio *codec.AudioMeta, fw codec.FrameWr
 		logger:    logger,
 	}
 
-	var videoDepacketizer, audioDepacketizer depacketizer
+	var videoDepacketizer, audioDepacketizer Depacketizer
 	switch video.Codec {
 	case "H264":
 		videoDepacketizer = NewH264Depacketizer(video, fw)
 	case "H265":
 		videoDepacketizer = NewH265Depacketizer(video, fw)
-	}
-	if videoDepacketizer == nil {
-		return nil, fmt.Errorf("Unsupport video codec type:%s", video.Codec)
+	default:
+		return nil, fmt.Errorf("rtp demuxer unsupport video codec type:%s", video.Codec)
 	}
 
 	fc.depacketizeFuncs[ChannelVideo] = videoDepacketizer.Depacketize

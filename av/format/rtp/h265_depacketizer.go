@@ -11,19 +11,19 @@ import (
 
 type h265Depacketizer struct {
 	fragments []*Packet // 分片包
-	video     *codec.VideoMeta
+	meta     *codec.VideoMeta
 	w         codec.FrameWriter
 	syncClock SyncClock
 }
 
 // NewH265Depacketizer 实例化 H265 帧提取器
-func NewH265Depacketizer(video *codec.VideoMeta, w codec.FrameWriter) depacketizer {
+func NewH265Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketizer {
 	fe := &h265Depacketizer{
-		video:     video,
+		meta:     meta,
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
 	}
-	fe.syncClock.RTPTimeUnit = 1000.0 / float64(video.ClockRate)
+	fe.syncClock.RTPTimeUnit = 1000.0 / float64(meta.ClockRate)
 	return fe
 }
 
@@ -178,16 +178,16 @@ func (h265dp *h265Depacketizer) writeFrame(frame *codec.Frame) error {
 	nalType := (frame.Payload[0] >> 1) & 0x3f
 	switch nalType {
 	case hevc.NalVps:
-		if len(h265dp.video.Vps) == 0 {
-			h265dp.video.Vps = frame.Payload
+		if len(h265dp.meta.Vps) == 0 {
+			h265dp.meta.Vps = frame.Payload
 		}
 	case hevc.NalSps:
-		if len(h265dp.video.Sps) == 0 {
-			h265dp.video.Sps = frame.Payload
+		if len(h265dp.meta.Sps) == 0 {
+			h265dp.meta.Sps = frame.Payload
 		}
 	case hevc.NalPps:
-		if len(h265dp.video.Pps) == 0 {
-			h265dp.video.Pps = frame.Payload
+		if len(h265dp.meta.Pps) == 0 {
+			h265dp.meta.Pps = frame.Payload
 		}
 	}
 	return h265dp.w.WriteFrame(frame)

@@ -10,7 +10,7 @@ import (
 )
 
 type aacDepacketizer struct {
-	audio       *codec.AudioMeta
+	meta       *codec.AudioMeta
 	w           codec.FrameWriter
 	sizeLength  int
 	indexLength int
@@ -19,14 +19,14 @@ type aacDepacketizer struct {
 }
 
 // NewAacDepacketizer 实例化 AAC 解包器
-func NewAacDepacketizer(audio *codec.AudioMeta, w codec.FrameWriter) depacketizer {
+func NewAacDepacketizer(meta *codec.AudioMeta, w codec.FrameWriter) Depacketizer {
 	fe := &aacDepacketizer{
-		audio:       audio,
+		meta:       meta,
 		w:           w,
 		sizeLength:  13,
 		indexLength: 3,
 	}
-	fe.syncClock.RTPTimeUnit = 1000.0 / float64(audio.SampleRate)
+	fe.syncClock.RTPTimeUnit = 1000.0 / float64(meta.SampleRate)
 	return fe
 }
 

@@ -13,19 +13,19 @@ import (
 
 type h264Depacketizer struct {
 	fragments []*Packet // 分片包
-	video     *codec.VideoMeta
+	meta     *codec.VideoMeta
 	w         codec.FrameWriter
 	syncClock SyncClock
 }
 
 // NewH264Depacketizer 实例化 H264 帧提取器
-func NewH264Depacketizer(video *codec.VideoMeta, w codec.FrameWriter) depacketizer {
+func NewH264Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketizer {
 	fe := &h264Depacketizer{
-		video:     video,
+		meta:     meta,
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
 	}
-	fe.syncClock.RTPTimeUnit = 1000.0 / float64(video.ClockRate)
+	fe.syncClock.RTPTimeUnit = 1000.0 / float64(meta.ClockRate)
 	return fe
 }
 
@@ -199,12 +199,12 @@ func (h264dp *h264Depacketizer) writeFrame(frame *codec.Frame) error {
 	nalType := frame.Payload[0] & 0x1f
 	switch nalType {
 	case h264.NalSps:
-		if len(h264dp.video.Sps) == 0 {
-			h264dp.video.Sps = frame.Payload
+		if len(h264dp.meta.Sps) == 0 {
+			h264dp.meta.Sps = frame.Payload
 		}
 	case h264.NalPps:
-		if len(h264dp.video.Pps) == 0 {
-			h264dp.video.Pps = frame.Payload
+		if len(h264dp.meta.Pps) == 0 {
+			h264dp.meta.Pps = frame.Payload
 		}
 	case h264.NalFillerData: // ?ignore...
 		return nil

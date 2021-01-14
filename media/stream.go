@@ -105,7 +105,7 @@ func (s *Stream) prepareOtherStream() {
 	s.flvCache = emptyCache{}
 	s.flvMuxer = emptyFlvMuxer{}
 
-	// prepare rtp.Packet -> av.Frame
+	// prepare rtp.Packet -> codec.Frame
 	var err error
 	if s.rtpDemuxer, err = rtp.NewDemuxer(&s.Video, &s.Audio,
 		s, s.logger.With(xlog.Fields(xlog.F("extra", "rtp2frame")))); err != nil {
@@ -113,14 +113,15 @@ func (s *Stream) prepareOtherStream() {
 		return
 	}
 
-	// prepare av.Frame -> flv.Tag
-	if s.Video.Codec == "H264" {
+	// prepare codec.Frame -> flv.Tag
+	var flvMuxer *flv.Muxer
+	if flvMuxer, err = flv.NewMuxer(&s.Video, &s.Audio,
+		s, s.logger.With(xlog.Fields(xlog.F("extra", "frame2flv")))); err == nil {
 		s.flvCache = cache.NewFlvCache(config.CacheGop())
-		s.flvMuxer = flv.NewMuxerAvcAac(s.Video, s.Audio,
-			s, s.logger.With(xlog.Fields(xlog.F("extra", "frame2flv"))))
+		s.flvMuxer = flvMuxer
 	}
 
-	// prepare av.Frame -> mpegts.Frame
+	// prepare codec.Frame -> mpegts.Frame
 	if s.Video.Codec == "H264" {
 		hlsPlaylist := hls.NewPlaylist()
 		sg, err := hls.NewSegmentGenerator(hlsPlaylist, s.path,

@@ -40,7 +40,7 @@ func TestFlvWriter(t *testing.T) {
 	var audio codec.AudioMeta
 	sdp.ParseMetadata(string(sdpraw), &video, &audio)
 	writer, err := NewWriter(out, 5)
-	flvMuxer := NewMuxerAvcAac(video, audio, writer, xlog.L())
+	flvMuxer,_ := NewMuxer(&video, &audio, writer, xlog.L())
 
 	rtpDemuxer,_ := rtp.NewDemuxer(&video,&audio,flvMuxer, xlog.L())
 	channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}
