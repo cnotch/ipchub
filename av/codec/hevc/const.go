@@ -75,6 +75,7 @@ const (
 	NalUnspec63  = 63
 
 	// RTP 中扩展
+	NalStapInRtp = 48
 	NalFuInRtp = 49
 )
 

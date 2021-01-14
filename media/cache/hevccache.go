@@ -117,33 +117,39 @@ func (cache *HevcCache) getPalyloadType(payload []byte) (vps, sps, pps, islice b
 	if len(payload) < 3 {
 		return
 	}
-
-	// +---------------+---------------+
-	// |0|1|2|3|4|5|6|7|0|1|2|3|4|5|6|7|
-	// +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	// |F|   Type    |  LayerId  | TID |
-	// +-------------+-----------------+
 	naluType := (payload[0] >> 1) & 0x3f
 
-	// 在RTP中的扩展,分片(FU)
-	if naluType == hevc.NalFuInRtp {
-		//  0 1 2 3 4 5 6 7
-		// +-+-+-+-+-+-+-+-+
-		// |S|E|  FuType   |
-		// +---------------+
+	switch naluType {
+	case hevc.NalStapInRtp: // 在RTP中的聚合（AP）
+		off := 2
+		// 循环读取被封装的NAL
+		for {
+			// nal长度
+			nalSize := ((uint16(payload[off])) << 8) | uint16(payload[off+1])
+			if nalSize < 1 {
+				return
+			}
+
+			off += 2
+			naluType = (payload[off] >> 1) & 0x3f
+			cache.nalType(naluType, &vps, &sps, &pps, &islice)
+			off += int(nalSize)
+
+			if off >= len(payload) { // 扫描完成
+				break
+			}
+		}
+		return
+	case hevc.NalFuInRtp: // 在RTP中的扩展,分片(FU)
 		naluType = payload[2] & 0x3f
 		if (payload[2]>>7)&1 == 1 { // 第一个分片
 			cache.nalType(naluType, &vps, &sps, &pps, &islice)
 		}
 		return
-	}
-
-	// 如果是原生的 HEVC NAL
-	if naluType <= hevc.NalRsvNvcl47 {
+	default:
 		cache.nalType(naluType, &vps, &sps, &pps, &islice)
 		return
 	}
-	return
 }
 
 func (cache *HevcCache) nalType(nalType byte, vps, sps, pps, islice *bool) {
