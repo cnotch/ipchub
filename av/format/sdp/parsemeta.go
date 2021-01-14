@@ -12,6 +12,7 @@ import (
 	"github.com/cnotch/ipchub/av/codec"
 	"github.com/cnotch/ipchub/av/codec/aac"
 	"github.com/cnotch/ipchub/av/codec/h264"
+	"github.com/cnotch/ipchub/av/codec/hevc"
 	"github.com/cnotch/ipchub/utils/scan"
 	"github.com/pixelbender/go-sdp/sdp"
 )
@@ -126,7 +127,14 @@ func parseVideoMeta(m *sdp.Format, video *codec.VideoMeta) {
 		}
 	case "h265", "H265", "hevc", "HEVC":
 		video.Codec = "H265"
-		// TODO: parse H265 vps sps pps
+		for _, p := range m.Params {
+			i := strings.Index(p, "sprop-")
+			if i < 0 {
+				continue
+			}
+			parseH265VpsSpsPps(p[i:], video)
+			break
+		}
 	}
 }
 
@@ -149,4 +157,35 @@ func parseH264SpsPps(s string, video *codec.VideoMeta) {
 	}
 
 	_ = h264.MetadataIsReady(video)
+}
+
+func parseH265VpsSpsPps(s string, video *codec.VideoMeta) {
+	var advance, token string
+	continueScan := true
+	advance = s
+	for continueScan {
+		advance, token, continueScan = scan.Semicolon.Scan(advance)
+		name, value, ok := scan.EqualPair.Scan(token)
+		if ok {
+			var ps *[]byte
+			var err error
+			switch name {
+			case "sprop-vps":
+				ps = &video.Vps
+			case "sprop-sps":
+				ps = &video.Sps
+			case "sprop-pps":
+				ps = &video.Pps
+			}
+			if ps == nil {
+				continue
+			}
+
+			if *ps, err = base64.StdEncoding.DecodeString(value); err != nil {
+				return
+			}
+		}
+	}
+
+	_ = hevc.MetadataIsReady(video)
 }
