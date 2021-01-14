@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/cnotch/ipchub/av/codec"
-	"github.com/cnotch/ipchub/av/codec/h264"
 	"github.com/cnotch/ipchub/av/format/sdp"
 	"github.com/cnotch/xlog"
 	"github.com/stretchr/testify/assert"
@@ -24,8 +23,9 @@ var demuxerTestCases = []struct {
 	rtpFile string
 	frames  frameWriter
 }{
-	{"game.sdp", "game.rtp", frameWriter{1354, 1937, 11, 0, 0}},
-	{"music.sdp", "music.rtp", frameWriter{1505, 2569, 9, 0, 9}},
+	{"game.sdp", "game.rtp", frameWriter{1354, 1937}},
+	{"music.sdp", "music.rtp", frameWriter{1505, 2569}},
+	{"265.sdp", "265.rtp", frameWriter{5828, 11395}},
 	// {"4k.rtp", frameWriter{898, 1359, 28, 0, 27}},
 }
 
@@ -56,11 +56,11 @@ func TestDemuxer(t *testing.T) {
 			reader := bufio.NewReader(file)
 			fw := &frameWriter{}
 			demuxer, err := NewDemuxer(&video, &audio, fw, xlog.L())
-			if err!=nil{
+			if err != nil {
 				t.Error(err)
 			}
 			defer demuxer.Close()
-			
+
 			for {
 				packet, err := ReadPacket(reader, channels)
 				if err == io.EOF {
@@ -73,7 +73,7 @@ func TestDemuxer(t *testing.T) {
 				demuxer.WriteRtpPacket(packet)
 			}
 			<-time.After(time.Second)
-			
+
 			assert.Equal(t, tt.frames, *fw)
 		})
 	}
@@ -82,23 +82,11 @@ func TestDemuxer(t *testing.T) {
 type frameWriter struct {
 	videoFrames int
 	audioFrames int
-	keys        int
-	sps         int
-	pps         int
 }
 
 func (fw *frameWriter) WriteFrame(frame *codec.Frame) (err error) {
 	if frame.MediaType == codec.MediaTypeVideo {
 		fw.videoFrames++
-		if h264.IsSps(frame.Payload[0]) {
-			fw.sps++
-		}
-		if h264.IsPps(frame.Payload[0]) {
-			fw.pps++
-		}
-		if h264.IsIdrSlice(frame.Payload[0]) {
-			fw.keys++
-		}
 	} else {
 		fw.audioFrames++
 	}
