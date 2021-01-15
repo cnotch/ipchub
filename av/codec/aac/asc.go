@@ -81,7 +81,7 @@ func (asc *AudioSpecificConfig) Decode(config []byte) (err error) {
 
 	if asc.ObjectType == AOT_ALS {
 		r.Skip(5)
-		if r.Peek(24) != binary.BigEndian.Uint32([]byte{0, 'A', 'L', 'S'}) {
+		if uint32(r.Peek(24)) != binary.BigEndian.Uint32([]byte{0, 'A', 'L', 'S'}) {
 			r.Skip(24)
 		}
 

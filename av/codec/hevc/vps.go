@@ -36,6 +36,7 @@ type H265RawProfileTierLevel struct {
 	General_profile_idc   uint8
 
 	General_profile_compatibility_flag [32]uint8
+	GeneralProfileCompatibilityFlags   uint32 // shortcut flags 32bits
 
 	General_progressive_source_flag    uint8
 	General_interlaced_source_flag     uint8
@@ -53,7 +54,8 @@ type H265RawProfileTierLevel struct {
 	General_lower_bit_rate_constraint_flag   uint8
 	General_max_14bit_constraint_flag        uint8
 
-	General_inbld_flag uint8
+	General_inbld_flag              uint8
+	GeneralConstraintIndicatorFlags uint64 // shortcut flags 48bits
 
 	General_level_idc uint8
 
@@ -103,10 +105,12 @@ func (ptl *H265RawProfileTierLevel) decode(r *bits.Reader,
 		ptl.General_tier_flag = r.ReadBit()
 		ptl.General_profile_idc = r.ReadUint8(5)
 
+		ptl.GeneralProfileCompatibilityFlags = uint32(r.Peek(32))
 		for j := 0; j < 32; j++ {
 			ptl.General_profile_compatibility_flag[j] = r.ReadBit()
 		}
 
+		ptl.GeneralConstraintIndicatorFlags = r.Peek(48)
 		ptl.General_progressive_source_flag = r.ReadBit()
 		ptl.General_interlaced_source_flag = r.ReadBit()
 		ptl.General_non_packed_constraint_flag = r.ReadBit()

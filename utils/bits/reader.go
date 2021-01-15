@@ -29,9 +29,9 @@ func (r *Reader) Skip(n int) {
 }
 
 // Peek peek the uint32 of n bits.
-func (r *Reader) Peek(n int) uint32 {
+func (r *Reader) Peek(n int) uint64 {
 	clone := *r
-	return uint32(clone.readUint64(n, 32))
+	return clone.readUint64(n, 64)
 }
 
 // Read read the uint32 of n bits.
