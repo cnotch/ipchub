@@ -18,44 +18,61 @@ import (
 	"github.com/cnotch/xlog"
 )
 
+var muxerTestCases = []struct {
+	sdpFile string
+	rtpFile string
+	flvFile string
+}{
+	{"game.sdp", "game.rtp", "game.flv"},
+	{"music.sdp", "music.rtp", "music.flv"},
+	{"265.sdp", "265.rtp", "265.flv"},
+}
+
 func TestFlvWriter(t *testing.T) {
-	sdpraw, err := ioutil.ReadFile("../../../test/asserts/game.sdp")
-	if err != nil {
-		panic("Couldn't open sdp")
-	}
+	assertsPath := "../../../test/asserts/"
 
-	file, err := os.Open("../../../test/asserts/game.rtp")
-	if err != nil {
-		panic("Couldn't open rtp")
-	}
-	defer file.Close()
-	reader := bufio.NewReader(file)
+	for _, tt := range muxerTestCases {
+		t.Run(tt.rtpFile, func(t *testing.T) {
 
-	out, err := os.OpenFile("game.flv", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		panic("Couldn't open flv")
-	}
-	defer out.Close()
-	var video codec.VideoMeta
-	var audio codec.AudioMeta
-	sdp.ParseMetadata(string(sdpraw), &video, &audio)
-	writer, err := NewWriter(out, 5)
-	flvMuxer,_ := NewMuxer(&video, &audio, writer, xlog.L())
+			sdpraw, err := ioutil.ReadFile(assertsPath + tt.sdpFile)
+			if err != nil {
+				panic("Couldn't open sdp")
+			}
 
-	rtpDemuxer,_ := rtp.NewDemuxer(&video,&audio,flvMuxer, xlog.L())
-	channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}
-	for {
-		packet, err := rtp.ReadPacket(reader, channels)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			t.Logf("read packet error :%s", err.Error())
-		}
-		rtpDemuxer.WriteRtpPacket(packet)
-	}
+			file, err := os.Open(assertsPath + tt.rtpFile)
+			if err != nil {
+				panic("Couldn't open rtp")
+			}
+			defer file.Close()
+			reader := bufio.NewReader(file)
 
-	<-time.After(time.Millisecond * 1000)
-	rtpDemuxer.Close()
-	flvMuxer.Close()
+			out, err := os.OpenFile(assertsPath+tt.flvFile, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+			if err != nil {
+				panic("Couldn't open flv")
+			}
+			defer out.Close()
+			var video codec.VideoMeta
+			var audio codec.AudioMeta
+			sdp.ParseMetadata(string(sdpraw), &video, &audio)
+			writer, err := NewWriter(out, 5)
+			flvMuxer, _ := NewMuxer(&video, &audio, writer, xlog.L())
+
+			rtpDemuxer, _ := rtp.NewDemuxer(&video, &audio, flvMuxer, xlog.L())
+			channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}
+			for {
+				packet, err := rtp.ReadPacket(reader, channels)
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					t.Logf("read packet error :%s", err.Error())
+				}
+				rtpDemuxer.WriteRtpPacket(packet)
+			}
+
+			<-time.After(time.Millisecond * 1000)
+			rtpDemuxer.Close()
+			flvMuxer.Close()
+		})
+	}
 }

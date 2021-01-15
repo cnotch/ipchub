@@ -42,7 +42,7 @@ func (cache *FlvCache) CachePack(pack Pack) {
 		cache.metaData = tag
 		return
 	}
-	if tag.IsH264SequenceHeader() {
+	if tag.IsH2645SequenceHeader() {
 		cache.videoSequenceHeader = tag
 		return
 	}
@@ -52,7 +52,7 @@ func (cache *FlvCache) CachePack(pack Pack) {
 	}
 
 	if cache.cacheGop { // 如果启用 FlvCache
-		if tag.IsH264KeyFrame() { // 关键帧，重置GOP
+		if tag.IsH2645KeyFrame() { // 关键帧，重置GOP
 			cache.gop.Reset()
 			cache.gop.Push(pack)
 		} else if cache.gop.Len() > 0 { // 必须关键帧作为cache的第一个包

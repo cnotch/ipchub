@@ -6,10 +6,10 @@ package flv
 
 import (
 	"github.com/cnotch/ipchub/av/codec"
-	"github.com/cnotch/ipchub/av/codec/h264"
+	"github.com/cnotch/ipchub/av/codec/hevc"
 )
 
-type h264Packetizer struct {
+type h265Packetizer struct {
 	meta      *codec.VideoMeta
 	tagWriter TagWriter
 	spsMuxed  bool
@@ -17,43 +17,43 @@ type h264Packetizer struct {
 	dtsStep   float64
 }
 
-func NewH264Packetizer(meta *codec.VideoMeta, tagWriter TagWriter) Packetizer {
-	h264p := &h264Packetizer{
+func NewH265Packetizer(meta *codec.VideoMeta, tagWriter TagWriter) Packetizer {
+	h265p := &h265Packetizer{
 		meta:      meta,
 		tagWriter: tagWriter,
 	}
 
 	if meta.FrameRate > 0 {
-		h264p.dtsStep = 1000.0 / meta.FrameRate
+		h265p.dtsStep = 1000.0 / meta.FrameRate
 	}
-	return h264p
+	return h265p
 }
 
-func (h264p *h264Packetizer) PacketizeSequenceHeader() error {
-	if h264p.spsMuxed {
+func (h265p *h265Packetizer) PacketizeSequenceHeader() error {
+	if h265p.spsMuxed {
 		return nil
 	}
 
-	if !h264.MetadataIsReady(h264p.meta) {
+	if !hevc.MetadataIsReady(h265p.meta) {
 		// not enough
 		return nil
 	}
 
-	h264p.spsMuxed = true
+	h265p.spsMuxed = true
 
-	if h264p.meta.FixedFrameRate {
-		h264p.dtsStep = 1000.0 / h264p.meta.FrameRate
+	if h265p.meta.FixedFrameRate {
+		h265p.dtsStep = 1000.0 / h265p.meta.FrameRate
 	} else { // TODO:
-		h264p.dtsStep = 1000.0 / 30
+		h265p.dtsStep = 1000.0 / 30
 	}
 
-	record := NewAVCDecoderConfigurationRecord(h264p.meta.Sps, h264p.meta.Pps)
+	record := NewHEVCDecoderConfigurationRecord(h265p.meta.Vps, h265p.meta.Sps, h265p.meta.Pps)
 	body, _ := record.Marshal()
 
 	videoData := &VideoData{
 		FrameType:       FrameTypeKeyFrame,
-		CodecID:         CodecIDAVC,
-		H2645PacketType:   H2645PacketTypeSequenceHeader,
+		CodecID:         CodecIDHEVC,
+		H2645PacketType: H2645PacketTypeSequenceHeader,
 		CompositionTime: 0,
 		Body:            body,
 	}
@@ -67,20 +67,19 @@ func (h264p *h264Packetizer) PacketizeSequenceHeader() error {
 		Data:      data,
 	}
 
-	return h264p.tagWriter.WriteFlvTag(tag)
+	return h265p.tagWriter.WriteFlvTag(tag)
 }
 
-func (h264p *h264Packetizer) Packetize(basePts int64, frame *codec.Frame) error {
-	if frame.Payload[0]&0x1F == h264.NalSps {
-		return h264p.PacketizeSequenceHeader()
+func (h265p *h265Packetizer) Packetize(basePts int64, frame *codec.Frame) error {
+	nalType := (frame.Payload[0] >> 1) & 0x3f
+	if nalType == hevc.NalVps ||
+		nalType == hevc.NalSps ||
+		nalType == hevc.NalPps {
+		return h265p.PacketizeSequenceHeader()
 	}
 
-	if frame.Payload[0]&0x1F == h264.NalPps {
-		return h264p.PacketizeSequenceHeader()
-	}
-
-	dts := int64(h264p.nextDts)
-	h264p.nextDts += h264p.dtsStep
+	dts := int64(h265p.nextDts)
+	h265p.nextDts += h265p.dtsStep
 	pts := frame.AbsTimestamp - basePts + ptsDelay
 	if dts > pts {
 		pts = dts
@@ -88,13 +87,13 @@ func (h264p *h264Packetizer) Packetize(basePts int64, frame *codec.Frame) error 
 
 	videoData := &VideoData{
 		FrameType:       FrameTypeInterFrame,
-		CodecID:         CodecIDAVC,
-		H2645PacketType:   H2645PacketTypeNALU,
+		CodecID:         CodecIDHEVC,
+		H2645PacketType: H2645PacketTypeNALU,
 		CompositionTime: uint32(pts - dts),
 		Body:            frame.Payload,
 	}
 
-	if frame.Payload[0]&0x1F == h264.NalIdrSlice {
+	if nalType >= hevc.NalBlaWLp && nalType <= hevc.NalCraNut {
 		videoData.FrameType = FrameTypeKeyFrame
 	}
 	data, _ := videoData.Marshal()
@@ -107,5 +106,5 @@ func (h264p *h264Packetizer) Packetize(basePts int64, frame *codec.Frame) error 
 		Data:      data,
 	}
 
-	return h264p.tagWriter.WriteFlvTag(tag)
+	return h265p.tagWriter.WriteFlvTag(tag)
 }

@@ -62,6 +62,8 @@ func NewMuxer(videoMeta *codec.VideoMeta, audioMeta *codec.AudioMeta, tagWriter 
 	switch videoMeta.Codec {
 	case "H264":
 		muxer.vp = NewH264Packetizer(videoMeta, tagWriter)
+	case "H265":
+		muxer.vp = NewH265Packetizer(videoMeta, tagWriter)
 	default:
 		return nil, fmt.Errorf("flv muxer unsupport video codec type:%s", videoMeta.Codec)
 	}
