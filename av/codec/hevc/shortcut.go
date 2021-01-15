@@ -28,3 +28,8 @@ func MetadataIsReady(vm *codec.VideoMeta) bool {
 	}
 	return true
 }
+
+// NulType .
+func NulType(nt byte) byte {
+	return (nt >> 1) & 0x3f
+}
