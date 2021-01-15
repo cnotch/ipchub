@@ -22,6 +22,9 @@
     + Websocket-FLV
     + HTTP-HLS
     + Websocket-RTSP（实验）: 实时性更好
++ 支持 H265+AAC H5播放（实验，需自行寻找播放软件），包括：
+    + HTTP-FLV
+    + Websocket-FLV
 + 支持流媒体用户推拉权限管理
 + 业务系统集成 RestfulAPI
 
