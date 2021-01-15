@@ -76,6 +76,11 @@ rtsp://localhost:1554/hr/door/video1 请求在服务器内自动变成去拉取r
 
 **注意:** 由于http-hls的段文件默认被放在内存中，占用大量的内存；如系统内存不足，请配置存储路径。
 
+### 3.6 访问 h265 flv
+打开demo地址：http://localhost:1554/demos/flv265
+
+输入：http://locaolhost:1554/streams/group/door.flv 即可访问。
+
 ## 4. 需要授权的情况
 除rtsp外，其他使用token进行访问。
 如果 http-flv,

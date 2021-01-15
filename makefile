@@ -6,7 +6,7 @@ GOTEST=$(GOCMD) test
 GOGET=$(GOCMD) get
 ENABLED_CGO=0
 BINARY_NAME=ipchub
-BINARY_DIR= bin/v1.0.0
+BINARY_DIR= bin/v1.1.0
 
 build:
 	CGO_ENABLED=$(ENABLED_CGO) $(GOBUILD) -o bin/$(BINARY_NAME) .

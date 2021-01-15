@@ -20,7 +20,7 @@ import (
 const (
 	Vendor  = "CAOHONGJU"
 	Name    = "ipchub"
-	Version = "V1.0.0"
+	Version = "V1.1.0"
 )
 
 var (
