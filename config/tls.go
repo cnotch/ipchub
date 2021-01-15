@@ -9,7 +9,6 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -29,14 +28,14 @@ func (c *TLSConfig) Load() (*tls.Config, error) {
 	// If the certificate provided is in plain text, write to file so we can read it.
 	if strings.HasPrefix(c.Certificate, "---") {
 		if err := ioutil.WriteFile("broker.crt", []byte(c.Certificate), os.ModePerm); err == nil {
-			c.Certificate = Name+".crt"
+			c.Certificate = Name + ".crt"
 		}
 	}
 
 	// If the private key provided is in plain text, write to file so we can read it.
 	if strings.HasPrefix(c.PrivateKey, "---") {
 		if err := ioutil.WriteFile("broker.key", []byte(c.PrivateKey), os.ModePerm); err == nil {
-			c.PrivateKey = Name+".key"
+			c.PrivateKey = Name + ".key"
 		}
 	}
 
@@ -49,10 +48,4 @@ func (c *TLSConfig) Load() (*tls.Config, error) {
 	return &tls.Config{
 		Certificates: []tls.Certificate{cer},
 	}, err
-}
-
-func resolvePath(path string) string {
-	// Make sure the path is absolute
-	path, _ = filepath.Abs(path)
-	return path
 }
