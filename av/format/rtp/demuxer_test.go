@@ -30,10 +30,11 @@ var demuxerTestCases = []struct {
 }
 
 func TestDemuxer(t *testing.T) {
+	assertsPath := "../../../test/asserts/"
 	channels := []int{int(ChannelVideo), int(ChannelVideoControl), int(ChannelAudio), int(ChannelAudioControl)}
 	for _, tt := range demuxerTestCases {
 		t.Run(tt.rtpFile, func(t *testing.T) {
-			sdpbytes, err := ioutil.ReadFile("../../../test/asserts/" + tt.sdpFile)
+			sdpbytes, err := ioutil.ReadFile(assertsPath + tt.sdpFile)
 			if err != nil {
 				t.Error(err)
 				return
@@ -46,7 +47,7 @@ func TestDemuxer(t *testing.T) {
 				return
 			}
 
-			file, err := os.Open("../../../test/asserts/" + tt.rtpFile)
+			file, err := os.Open(assertsPath + tt.rtpFile)
 			if err != nil {
 				t.Error(err)
 				return

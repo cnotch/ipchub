@@ -19,19 +19,20 @@ import (
 )
 
 func TestMpegtsWriter(t *testing.T) {
-	sdpraw, err := ioutil.ReadFile("../../../test/asserts/music.sdp")
+	assertsPath := "../../../test/asserts/"
+	sdpraw, err := ioutil.ReadFile(assertsPath + "music.sdp")
 	if err != nil {
 		panic("Couldn't open sdp")
 	}
 
-	file, err := os.Open("../../../test/asserts/music.rtp")
+	file, err := os.Open(assertsPath + "music.rtp")
 	if err != nil {
 		panic("Couldn't open rtp")
 	}
 	defer file.Close()
 	reader := bufio.NewReader(file)
 
-	out, err := os.OpenFile("music.ts", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
+	out, err := os.OpenFile(assertsPath+"music.ts", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		panic("Couldn't open ts")
 	}
@@ -42,7 +43,7 @@ func TestMpegtsWriter(t *testing.T) {
 	writer, err := NewWriter(out)
 	tsMuxer, _ := NewMuxerAvcAac(video, audio, writer, xlog.L())
 
-	rtpDemuxer,_ := rtp.NewDemuxer(&video, &audio, tsMuxer, xlog.L())
+	rtpDemuxer, _ := rtp.NewDemuxer(&video, &audio, tsMuxer, xlog.L())
 	channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}
 	for {
 		packet, err := rtp.ReadPacket(reader, channels)

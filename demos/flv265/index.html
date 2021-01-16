@@ -93,9 +93,9 @@
     var urlInput = document.getElementsByName('265urlinput')[0];
     var canvas = document.getElementById('videoDisplayCanvas');
     var videoElement = document.getElementsByName('videoElement')[0];
+    var baseUri = location.protocol+'//'+location.host+'/';
 
     function flv_load() {
-
         if (typeof player !== "undefined") {
             if (player != null) {
                 player.destroy();
@@ -114,7 +114,7 @@
             disableStreamLoader: false,  
             lazyLoadMaxDuration: 3 * 60,
             seekType: 'range',
-            wasmFilePath: 'http://127.0.0.1:1554/demos/flv265/libqydecoder.wasm',
+            wasmFilePath: baseUri+'demos/flv265/libqydecoder.wasm',
             url: urlInput.value,
             timeToDecideWaiting: 500,       //暂停多久算卡顿, 默认500ms
             decodingCapacityInadequateDuration: 10,  //解码能力不足持续的时间，默认10s

@@ -18,7 +18,15 @@ func TestRawSPS_Parse(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			"base64_1",
+			"music",
+			"Z01AH6sSB4CL9wgAAAMACAAAAwGUeMGMTA==",
+			960,
+			540,
+			25,
+			false,
+		},
+		{
+			"game",
 			"Z2QAH6zZQFAFuhAAAAMAEAAAAwPI8YMZYA==",
 			1280,
 			720,
@@ -26,15 +34,7 @@ func TestRawSPS_Parse(t *testing.T) {
 			false,
 		},
 		{
-			"base64_2",
-			"Z3oAH7y0AoAt0IAAAAMAgAAAHkeMGVA=",
-			1280,
-			720,
-			30,
-			false,
-		},
-		{
-			"base64_3",
+			"4k",
 			"Z2QAM6wspADwAQ+wFSAgICgAAB9IAAdTBO0LFok=",
 			3840,
 			2160,

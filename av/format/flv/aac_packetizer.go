@@ -6,6 +6,9 @@ package flv
 
 import "github.com/cnotch/ipchub/av/codec"
 
+// in ms, for aac flush the audio
+const aacDelay = 100
+
 type aacPacketizer struct {
 	meta         *codec.AudioMeta
 	dataTemplate *AudioData
@@ -82,11 +85,12 @@ func (ap *aacPacketizer) Packetize(basePts int64, frame *codec.Frame) error {
 	audioData := *ap.dataTemplate
 	audioData.Body = frame.Payload
 	data, _ := audioData.Marshal()
-
+	pts := aacDelay + frame.AbsTimestamp - basePts + ptsDelay
+	
 	tag := &Tag{
 		TagType:   TagTypeAudio,
 		DataSize:  uint32(len(data)),
-		Timestamp: uint32(frame.AbsTimestamp-basePts) + ptsDelay,
+		Timestamp: uint32(pts),
 		StreamID:  0,
 		Data:      data,
 	}
