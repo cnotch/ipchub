@@ -41,7 +41,7 @@ func TestMpegtsWriter(t *testing.T) {
 	var audio codec.AudioMeta
 	sdp.ParseMetadata(string(sdpraw), &video, &audio)
 	writer, err := NewWriter(out)
-	tsMuxer, _ := NewMuxerAvcAac(video, audio, writer, xlog.L())
+	tsMuxer, _ := NewMuxer(&video, &audio, writer, xlog.L())
 
 	rtpDemuxer, _ := rtp.NewDemuxer(&video, &audio, tsMuxer, xlog.L())
 	channels := []int{int(rtp.ChannelVideo), int(rtp.ChannelVideoControl), int(rtp.ChannelAudio), int(rtp.ChannelAudioControl)}

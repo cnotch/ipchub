@@ -55,7 +55,8 @@ type Stream struct {
 	flvMuxer             flvMuxer
 	flvConsumptions      consumptions
 	flvCache             packCache
-	tsMuxer              *mpegts.MuxerAvcAac
+	tsMuxer              *mpegts.Muxer
+	hlsSG                *hls.SegmentGenerator
 	hlsPlaylist          *hls.Playlist
 	attrs                map[string]string // 流属性
 	multicast            Multicastable
@@ -131,12 +132,13 @@ func (s *Stream) prepareOtherStream() {
 		if err != nil {
 			return
 		}
-		tsMuxer, err2 := mpegts.NewMuxerAvcAac(s.Video, s.Audio, sg,
+		tsMuxer, err2 := mpegts.NewMuxer(&s.Video, &s.Audio, sg,
 			s.logger.With(xlog.Fields(xlog.F("extra", "ts.Muxer"))))
 		if err2 != nil {
 			return
 		}
 		s.tsMuxer = tsMuxer
+		s.hlsSG = sg
 		s.hlsPlaylist = hlsPlaylist
 	}
 }
@@ -179,6 +181,7 @@ func (s *Stream) close(status int32) error {
 	// 关闭 hls
 	if s.tsMuxer != nil {
 		s.tsMuxer.Close()
+		s.hlsSG.Close()
 		s.hlsPlaylist.Close()
 	}
 
