@@ -18,19 +18,13 @@ import (
 // Packetizer 封包器
 type Packetizer interface {
 	PacketizeSequenceHeader() error
-	Packetize(basePts int64, frame *codec.Frame) error
+	Packetize(frame *codec.Frame) error
 }
 
 type emptyPacketizer struct{}
 
-func (emptyPacketizer) PacketizeSequenceHeader() error                    { return nil }
-func (emptyPacketizer) Packetize(basePts int64, frame *codec.Frame) error { return nil }
-
-// 网络播放时 PTS（Presentation Time Stamp）的延时
-// 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
-const (
-	ptsDelay = 1000
-)
+func (emptyPacketizer) PacketizeSequenceHeader() error     { return nil }
+func (emptyPacketizer) Packetize(frame *codec.Frame) error { return nil }
 
 // Muxer flv muxer from av.Frame(H264[+AAC])
 type Muxer struct {
@@ -113,7 +107,8 @@ func (muxer *Muxer) process() {
 		muxer.recvQueue.Reset()
 	}()
 
-	var basePts int64
+	var packSequenceHeader bool
+
 	for !muxer.closed {
 		f := muxer.recvQueue.Pop()
 		if f == nil {
@@ -123,21 +118,22 @@ func (muxer *Muxer) process() {
 			continue
 		}
 
-		frame := f.(*codec.Frame)
-		if basePts == 0 {
-			basePts = frame.AbsTimestamp
+		if !packSequenceHeader{
 			muxer.muxMetadataTag()
 			muxer.vp.PacketizeSequenceHeader()
 			muxer.ap.PacketizeSequenceHeader()
+			packSequenceHeader = true
 		}
+		
+		frame := f.(*codec.Frame)
 
 		switch frame.MediaType {
 		case codec.MediaTypeVideo:
-			if err := muxer.vp.Packetize(basePts, frame); err != nil {
+			if err := muxer.vp.Packetize(frame); err != nil {
 				muxer.logger.Errorf("flvmuxer: muxVideoTag error - %s", err.Error())
 			}
 		case codec.MediaTypeAudio:
-			if err := muxer.ap.Packetize(basePts, frame); err != nil {
+			if err := muxer.ap.Packetize(frame); err != nil {
 				muxer.logger.Errorf("flvmuxer: muxAudioTag error - %s", err.Error())
 			}
 		default:

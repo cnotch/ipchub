@@ -15,18 +15,12 @@ import (
 
 // Packetizer 封包器
 type Packetizer interface {
-	Packetize(basePts int64, frame *codec.Frame) error
+	Packetize(frame *codec.Frame) error
 }
 
 type emptyPacketizer struct{}
 
-func (emptyPacketizer) Packetize(basePts int64, frame *codec.Frame) error { return nil }
-
-// 网络播放时 PTS（Presentation Time Stamp）的延时
-// 影响视频 Tag 的 CTS 和音频的 DTS（Decoding Time Stamp）
-const (
-	ptsDelay = 1000
-)
+func (emptyPacketizer) Packetize(frame *codec.Frame) error { return nil }
 
 // Muxer mpegts muxer from av.Frame(H264[+AAC])
 type Muxer struct {
@@ -94,7 +88,6 @@ func (muxer *Muxer) process(vp, ap Packetizer) {
 		muxer.recvQueue.Reset()
 	}()
 
-	var basePts int64
 	for !muxer.closed {
 		f := muxer.recvQueue.Pop()
 		if f == nil {
@@ -105,17 +98,14 @@ func (muxer *Muxer) process(vp, ap Packetizer) {
 		}
 
 		frame := f.(*codec.Frame)
-		if basePts == 0 {
-			basePts = frame.AbsTimestamp
-		}
 
 		switch frame.MediaType {
 		case codec.MediaTypeVideo:
-			if err := vp.Packetize(basePts, frame); err != nil {
+			if err := vp.Packetize(frame); err != nil {
 				muxer.logger.Errorf("tsmuxer: muxVideoTag error - %s", err.Error())
 			}
 		case codec.MediaTypeAudio:
-			if err := ap.Packetize(basePts, frame); err != nil {
+			if err := ap.Packetize(frame); err != nil {
 				muxer.logger.Errorf("tsmuxer: muxAudioTag error - %s", err.Error())
 			}
 		default:

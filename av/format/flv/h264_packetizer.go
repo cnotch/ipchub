@@ -5,6 +5,8 @@
 package flv
 
 import (
+	"time"
+
 	"github.com/cnotch/ipchub/av/codec"
 	"github.com/cnotch/ipchub/av/codec/h264"
 )
@@ -12,9 +14,6 @@ import (
 type h264Packetizer struct {
 	meta      *codec.VideoMeta
 	tagWriter TagWriter
-	spsMuxed  bool
-	nextDts   float64
-	dtsStep   float64
 }
 
 func NewH264Packetizer(meta *codec.VideoMeta, tagWriter TagWriter) Packetizer {
@@ -22,38 +21,17 @@ func NewH264Packetizer(meta *codec.VideoMeta, tagWriter TagWriter) Packetizer {
 		meta:      meta,
 		tagWriter: tagWriter,
 	}
-
-	if meta.FrameRate > 0 {
-		h264p.dtsStep = 1000.0 / meta.FrameRate
-	}
 	return h264p
 }
 
 func (h264p *h264Packetizer) PacketizeSequenceHeader() error {
-	if h264p.spsMuxed {
-		return nil
-	}
-
-	if !h264.MetadataIsReady(h264p.meta) {
-		// not enough
-		return nil
-	}
-
-	h264p.spsMuxed = true
-
-	if h264p.meta.FixedFrameRate {
-		h264p.dtsStep = 1000.0 / h264p.meta.FrameRate
-	} else { // TODO:
-		h264p.dtsStep = 1000.0 / 30
-	}
-
 	record := NewAVCDecoderConfigurationRecord(h264p.meta.Sps, h264p.meta.Pps)
 	body, _ := record.Marshal()
 
 	videoData := &VideoData{
 		FrameType:       FrameTypeKeyFrame,
 		CodecID:         CodecIDAVC,
-		H2645PacketType:   H2645PacketTypeSequenceHeader,
+		H2645PacketType: H2645PacketTypeSequenceHeader,
 		CompositionTime: 0,
 		Body:            body,
 	}
@@ -70,26 +48,15 @@ func (h264p *h264Packetizer) PacketizeSequenceHeader() error {
 	return h264p.tagWriter.WriteFlvTag(tag)
 }
 
-func (h264p *h264Packetizer) Packetize(basePts int64, frame *codec.Frame) error {
-	if frame.Payload[0]&0x1F == h264.NalSps {
-		return h264p.PacketizeSequenceHeader()
-	}
+func (h264p *h264Packetizer) Packetize(frame *codec.Frame) error {
 
-	if frame.Payload[0]&0x1F == h264.NalPps {
-		return h264p.PacketizeSequenceHeader()
-	}
-
-	dts := int64(h264p.nextDts)
-	h264p.nextDts += h264p.dtsStep
-	pts := frame.AbsTimestamp - basePts + ptsDelay
-	if dts > pts {
-		pts = dts
-	}
+	dts := frame.Dts / int64(time.Millisecond)
+	pts := frame.Pts / int64(time.Millisecond)
 
 	videoData := &VideoData{
 		FrameType:       FrameTypeInterFrame,
 		CodecID:         CodecIDAVC,
-		H2645PacketType:   H2645PacketTypeNALU,
+		H2645PacketType: H2645PacketTypeNALU,
 		CompositionTime: uint32(pts - dts),
 		Body:            frame.Payload,
 	}

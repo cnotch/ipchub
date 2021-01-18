@@ -86,6 +86,10 @@ type frameWriter struct {
 }
 
 func (fw *frameWriter) WriteFrame(frame *codec.Frame) (err error) {
+	dts := frame.Dts / int64(time.Millisecond)
+	pts := frame.Pts / int64(time.Millisecond)
+	_ = dts
+	_ = pts
 	if frame.MediaType == codec.MediaTypeVideo {
 		fw.videoFrames++
 	} else {

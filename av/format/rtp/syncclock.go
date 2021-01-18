@@ -21,12 +21,12 @@ type SyncClock struct {
 	// RTP Timestamp：与NTP时间戳对应，
 	// 与RTP数据包中的RTP时间戳具有相同的单位和随机初始值。
 	RTPTime     uint32
-	RTPTimeUnit float64 // RTP时间单位，每个RTP时间的豪秒数
+	RTPTimeUnit float64 // RTP时间单位，每个RTP时间的纳秒数
 }
 
 // LocalTime 本地时间
 func (sc *SyncClock) LocalTime() time.Time {
-	return time.Unix(0, sc.NTPTime*int64(time.Millisecond)).In(time.Local)
+	return time.Unix(0, sc.NTPTime).In(time.Local)
 }
 
 // Decode .
@@ -36,7 +36,6 @@ func (sc *SyncClock) Decode(data []byte) (ok bool) {
 		lsw := binary.BigEndian.Uint32(data[12:])
 		sc.RTPTime = binary.BigEndian.Uint32(data[16:])
 		sc.NTPTime = int64(msw-jan1970)*int64(time.Second) + (int64(lsw)*1000_000_000)>>32
-		sc.NTPTime /= int64(time.Millisecond)
 		ok = true
 	}
 	return

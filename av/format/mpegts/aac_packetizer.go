@@ -6,6 +6,7 @@ package mpegts
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/cnotch/ipchub/av/codec"
 	"github.com/cnotch/ipchub/av/codec/aac"
@@ -48,9 +49,8 @@ func (ap *aacPacketizer) prepareAsc() (err error) {
 	return
 }
 
-func (ap *aacPacketizer) Packetize(basePts int64, frame *codec.Frame) error {
-	pts := frame.AbsTimestamp - basePts + ptsDelay
-	pts *= 90
+func (ap *aacPacketizer) Packetize(frame *codec.Frame) error {
+	pts := frame.Pts * 90000 / int64(time.Second) // 90000Hz
 
 	// set fields
 	tsframe := &Frame{
