@@ -32,6 +32,8 @@ type consumption struct {
 	closed     bool             // 消费者是否关闭
 	Flow       stats.Flow       // 流量统计
 	logger     *xlog.Logger     // 日志对象
+	discarding bool             // 媒体包丢弃中
+	maxQLen    int
 }
 
 func (c *consumption) ID() CID {
@@ -50,9 +52,20 @@ func (c *consumption) Close() error {
 }
 
 // 向消费者发送媒体包
-func (c *consumption) send(pack Pack) {
-	c.recvQueue.Push(pack)
-	c.Flow.AddIn(int64(pack.Size()))
+func (c *consumption) send(pack Pack, keyframe bool) {
+	if keyframe { // 是 key frame
+		n := c.recvQueue.Len()
+		if c.discarding && n < c.maxQLen {
+			c.discarding = false
+		} else if !c.discarding && n > c.maxQLen {
+			c.discarding = true
+		}
+	}
+
+	if !c.discarding {
+		c.recvQueue.Push(pack)
+		c.Flow.AddIn(int64(pack.Size()))
+	}
 }
 
 // 向消费者发送一个图像组

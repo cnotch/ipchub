@@ -15,10 +15,10 @@ type consumptions struct {
 	count int32
 }
 
-func (m *consumptions) SendToAll(p Pack) {
+func (m *consumptions) SendToAll(p Pack, keyframe bool) {
 	m.Range(func(key, value interface{}) bool {
 		c := value.(*consumption)
-		c.send(p)
+		c.send(p, keyframe)
 		return true
 	})
 }

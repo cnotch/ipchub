@@ -207,8 +207,8 @@ func (s *Stream) WriteRtpPacket(packet *rtp.Packet) error {
 
 	atomic.AddUint64(&s.size, uint64(packet.Size()))
 
-	s.cache.CachePack(packet)
-	s.consumptions.SendToAll(packet)
+	keyframe := s.cache.CachePack(packet)
+	s.consumptions.SendToAll(packet, keyframe)
 
 	s.rtpDemuxer.WriteRtpPacket(packet)
 	return nil
@@ -234,8 +234,8 @@ func (s *Stream) WriteFlvTag(tag *flv.Tag) error {
 		return statusErrors[status]
 	}
 
-	s.flvCache.CachePack(tag)
-	s.flvConsumptions.SendToAll(tag)
+	keyframe := s.flvCache.CachePack(tag)
+	s.flvConsumptions.SendToAll(tag, keyframe)
 	return nil
 }
 
@@ -263,6 +263,7 @@ func (s *Stream) startConsume(consumer Consumer, packetType PacketType, extra st
 		packetType: packetType,
 		extra:      extra,
 		Flow:       stats.NewFlow(),
+		maxQLen:    1000,
 	}
 
 	c.logger = s.logger.With(xlog.Fields(

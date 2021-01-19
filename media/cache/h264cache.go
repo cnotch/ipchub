@@ -29,11 +29,11 @@ func NewH264Cache(cacheGop bool) *H264Cache {
 }
 
 // CachePack 向H264Cache中缓存包
-func (cache *H264Cache) CachePack(pack Pack) {
+func (cache *H264Cache) CachePack(pack Pack) bool {
 	rtppack := pack.(*rtp.Packet)
 
 	if rtppack.Channel != rtp.ChannelVideo {
-		return
+		return false
 	}
 
 	// 判断是否是参数和关键帧包
@@ -44,12 +44,12 @@ func (cache *H264Cache) CachePack(pack Pack) {
 
 	if sps { // 新序列参数,重置图像参数和 GopCache
 		cache.sps = rtppack
-		return
+		return false
 	}
 
 	if pps { // 新图像参数，重置 GopCahce
 		cache.pps = rtppack
-		return
+		return false
 	}
 
 	if cache.cacheGop { // 需要缓存 GOP
@@ -60,6 +60,7 @@ func (cache *H264Cache) CachePack(pack Pack) {
 			cache.gop.Push(rtppack)
 		}
 	}
+	return islice
 }
 
 // Reset 重置H264Cache缓存

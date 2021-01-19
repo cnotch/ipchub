@@ -32,7 +32,7 @@ func NewFlvCache(cacheGop bool) *FlvCache {
 }
 
 // CachePack 向FlvCache中缓存包
-func (cache *FlvCache) CachePack(pack Pack) {
+func (cache *FlvCache) CachePack(pack Pack) bool {
 	tag := pack.(*flv.Tag)
 
 	cache.l.Lock()
@@ -40,25 +40,27 @@ func (cache *FlvCache) CachePack(pack Pack) {
 
 	if tag.IsMetadata() {
 		cache.metaData = tag
-		return
+		return false
 	}
 	if tag.IsH2645SequenceHeader() {
 		cache.videoSequenceHeader = tag
-		return
+		return false
 	}
 	if tag.IsAACSequenceHeader() {
 		cache.audioSequenceHeader = tag
-		return
+		return false
 	}
 
+	keyframe := tag.IsH2645KeyFrame()
 	if cache.cacheGop { // 如果启用 FlvCache
-		if tag.IsH2645KeyFrame() { // 关键帧，重置GOP
+		if keyframe { // 关键帧，重置GOP
 			cache.gop.Reset()
 			cache.gop.Push(pack)
 		} else if cache.gop.Len() > 0 { // 必须关键帧作为cache的第一个包
 			cache.gop.Push(pack)
 		}
 	}
+	return keyframe
 }
 
 // Reset 重置FlvCache缓存

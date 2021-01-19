@@ -17,7 +17,7 @@ import (
 type Pack = format.Packet
 
 type packCache interface {
-	CachePack(pack Pack)
+	CachePack(pack Pack) (keyframe bool) // 返回是否是关键帧
 	PushTo(q *queue.SyncQueue) int
 	Reset()
 }
@@ -27,7 +27,7 @@ var _ packCache = emptyCache{}
 type emptyCache struct {
 }
 
-func (emptyCache) CachePack(Pack)                {}
+func (emptyCache) CachePack(Pack) bool           { return false }
 func (emptyCache) PushTo(q *queue.SyncQueue) int { return 0 }
 func (emptyCache) Reset()                        {}
 
@@ -41,9 +41,9 @@ var _ flvMuxer = emptyFlvMuxer{}
 
 type emptyFlvMuxer struct{}
 
-func (emptyFlvMuxer) TypeFlags() byte                  { return 0 }
+func (emptyFlvMuxer) TypeFlags() byte                     { return 0 }
 func (emptyFlvMuxer) WriteFrame(frame *codec.Frame) error { return nil }
-func (emptyFlvMuxer) Close() error                     { return nil }
+func (emptyFlvMuxer) Close() error                        { return nil }
 
 type rtpDemuxer interface {
 	rtp.PacketWriter
@@ -54,6 +54,6 @@ var _ rtpDemuxer = emptyRtpDemuxer{}
 
 type emptyRtpDemuxer struct{}
 
-func (emptyRtpDemuxer) TypeFlags() byte               { return 0 }
+func (emptyRtpDemuxer) TypeFlags() byte                  { return 0 }
 func (emptyRtpDemuxer) WriteRtpPacket(*rtp.Packet) error { return nil }
-func (emptyRtpDemuxer) Close() error                  { return nil }
+func (emptyRtpDemuxer) Close() error                     { return nil }

@@ -30,11 +30,11 @@ func NewHevcCache(cacheGop bool) *HevcCache {
 }
 
 // CachePack 向HevcCache中缓存包
-func (cache *HevcCache) CachePack(pack Pack) {
+func (cache *HevcCache) CachePack(pack Pack) bool {
 	rtppack := pack.(*rtp.Packet)
 
 	if rtppack.Channel != rtp.ChannelVideo {
-		return
+		return false
 	}
 
 	// 判断是否是参数和关键帧包
@@ -45,17 +45,17 @@ func (cache *HevcCache) CachePack(pack Pack) {
 
 	if vps { // 视频参数
 		cache.vps = rtppack
-		return
+		return false
 	}
 
 	if sps { // 序列头参数
 		cache.sps = rtppack
-		return
+		return false
 	}
 
 	if pps { // 图像参数
 		cache.pps = rtppack
-		return
+		return false
 	}
 
 	if cache.cacheGop { // 需要缓存 GOP
@@ -66,6 +66,7 @@ func (cache *HevcCache) CachePack(pack Pack) {
 			cache.gop.Push(rtppack)
 		}
 	}
+	return islice
 }
 
 // Reset 重置HevcCache缓存
