@@ -5,6 +5,8 @@
 *.mp4
 *.flv
 *.ts
+*.sdp
+*.rtp
 
 # Folders
 _obj
