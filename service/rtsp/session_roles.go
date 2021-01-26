@@ -239,11 +239,11 @@ func (s *Session) asTCPConsumer(stream *media.Stream, resp *Response) (err error
 	}
 	s.timeout = 0 // play 只需发送不用接收，因此设置不超时
 	s.consumer = c
-	if s.wsconn != nil {
-		c.cid = stream.StartConsumeNoGopCache(s, media.RTPPacket, "net=rtsp-websocket")
-	} else {
-		c.cid = stream.StartConsume(s, media.RTPPacket, "net=rtsp-tcp")
-	}
+	// if s.wsconn != nil {
+	// 	c.cid = stream.StartConsumeNoGopCache(s, media.RTPPacket, "net=rtsp-websocket")
+	// } else {
+	c.cid = stream.StartConsume(s, media.RTPPacket, "net=rtsp-tcp")
+	// }
 	return
 }
 

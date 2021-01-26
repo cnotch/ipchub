@@ -364,8 +364,8 @@ func (s *Session) onPlay(resp *rtsp.Response, req *rtsp.Request) {
 	resp.Header.Set(rtsp.FieldRange, req.Header.Get(rtsp.FieldRange))
 	if s.cid == nil {
 		s.source = stream
-		// cid := stream.StartConsume(s)
-		cid := stream.StartConsumeNoGopCache(s, media.RTPPacket, "wsp")
+		cid := stream.StartConsume(s, media.RTPPacket, "wsp")
+		// cid := stream.StartConsumeNoGopCache(s, media.RTPPacket, "wsp")
 		s.cid = &cid
 	}
 	s.status = statusPlaying
