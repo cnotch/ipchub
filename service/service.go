@@ -22,6 +22,7 @@ import (
 	"github.com/cnotch/ipchub/provider/auth"
 	"github.com/cnotch/ipchub/provider/route"
 	"github.com/cnotch/ipchub/service/rtsp"
+	"github.com/cnotch/ipchub/service/wsp"
 	"github.com/cnotch/scheduler"
 	"github.com/cnotch/xlog"
 	"github.com/emitter-io/address"
@@ -36,6 +37,7 @@ type Service struct {
 	tlsusing bool
 	http     *http.Server
 	rtsp     *tcp.Server
+	wsp      *tcp.Server
 	tokens   *auth.TokenManager
 }
 
@@ -48,6 +50,7 @@ func NewService(ctx context.Context, l *xlog.Logger) (s *Service, err error) {
 		logger:  l,
 		http:    new(http.Server),
 		rtsp:    new(tcp.Server),
+		wsp:     new(tcp.Server),
 		tokens:  new(auth.TokenManager),
 	}
 
@@ -78,7 +81,8 @@ func NewService(ctx context.Context, l *xlog.Logger) (s *Service, err error) {
 
 	// 设置 rtsp AcceptHandler
 	s.rtsp.OnAccept = rtsp.CreateAcceptHandler()
-
+	// 设置 wsp AcceptHandler
+	s.wsp.OnAccept = wsp.CreateAcceptHandler()
 	// 启动定时存储拉流信息
 	scheduler.PeriodFunc(time.Minute*5, time.Minute*5, func() {
 		route.Flush()

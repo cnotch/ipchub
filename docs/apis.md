@@ -70,6 +70,9 @@ rtsp.active | number | 当前活跃连接数 |
 flv| object| flv连接信息 |
 flv.total|number|累计总链接数 |
 flv.active | number | 当前活跃连接数 |
+wsp| object| wsp连接信息 |
+wsp.total|number|累计总链接数 |
+wsp.active | number | 当前活跃连接数 |
 extra | object | 运行时内存等信息 |
 
 #### 1.2.1 示例
@@ -96,6 +99,10 @@ curl http://localhost:1554/api/v1/runtime
 		"active": 0
 	},
 	"flv": {
+		"total": 0,
+		"active": 0
+	},
+	"wsp": {
 		"total": 0,
 		"active": 0
 	}

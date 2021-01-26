@@ -38,6 +38,12 @@ func (s *Service) onWebSocketRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if ws.Subprotocol() == "control" || ws.Subprotocol() == "data" {
+			// 代理访问
+			s.wsp.OnAccept(ws)
+			return
+		}
+
 		if ext == ".flv" {
 			go flv.ConsumeByWebsocket(s.logger, streamPath, r.RemoteAddr, ws)
 			return

@@ -12,6 +12,7 @@ import (
 var (
 	RtspConns = NewConns() // RTSP连接统计
 	FlvConns  = NewConns() // flv连接统计
+	WspConns  = NewConns() // WSP连接统计
 )
 
 // ConnsSample 连接计数采样

@@ -67,7 +67,7 @@ const (
 
 // The default upgrader to use
 var upgrader = &websocket.Upgrader{
-	Subprotocols: []string{"rtsp"},
+	Subprotocols: []string{"rtsp", "control", "data"},
 	CheckOrigin:  func(r *http.Request) bool { return true },
 	// ReadBufferSize: 64 * 1024, WriteBufferSize: 64 * 1024,
 }

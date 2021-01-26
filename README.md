@@ -18,15 +18,17 @@
 + 支持 RTSP 拉流（拉取摄像头或其他流媒体服务器资源）
 + 支持 RTSP TCP、UDP、Multicast 播放
 + 支持 H264+AAC H5播放，包括：
+    + WSP: [html5_rtsp_player](https://github.com/Streamedian/html5_rtsp_player)
+    + Websocket-RTSP（实验）: 播放端修改自[html5_rtsp_player](https://github.com/Streamedian/html5_rtsp_player)
     + HTTP-FLV
     + Websocket-FLV
     + HTTP-HLS
-    + Websocket-RTSP（实验）: 实时性更好
 + 支持 H265+AAC H5播放（实验，需自行寻找播放软件），包括：
     + HTTP-FLV
     + Websocket-FLV
 + 支持流媒体用户推拉权限管理
 + 业务系统集成 RestfulAPI
++ 支持 user 和 routetable 提供者插件：仅支持 linux 和 mac
 
 ## 文档
 + [Quick Start](/docs/quickstart.md)

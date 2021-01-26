@@ -189,6 +189,7 @@ func (s *Service) onGetRuntime(w http.ResponseWriter, r *http.Request, pathParam
 		Streams sccc              `json:"streams"`
 		Rtsp    stats.ConnsSample `json:"rtsp"`
 		Flv     stats.ConnsSample `json:"flv"`
+		Wsp     stats.ConnsSample `json:"wsp"`
 		Extra   *stats.Runtime    `json:"extra,omitempty"`
 	}
 	sc, cc := media.Count()
@@ -199,6 +200,7 @@ func (s *Service) onGetRuntime(w http.ResponseWriter, r *http.Request, pathParam
 		Streams: sccc{sc, cc},
 		Rtsp:    stats.RtspConns.GetSample(),
 		Flv:     stats.FlvConns.GetSample(),
+		Wsp:     stats.WspConns.GetSample(),
 	}
 
 	params := r.URL.Query()

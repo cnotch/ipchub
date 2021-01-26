@@ -52,31 +52,36 @@ ffplay -rtsp_transport tcp  rtsp://localhost:1554/hr/door/video1 -fflags nobuffe
 
 rtsp://localhost:1554/hr/door/video1 请求在服务器内自动变成去拉取rtsp://admin:admin@192.168.110.145:1554/door/video1。
 
-### 3.2 使用websocket-rtsp
+### 3.2 使用wsp
+打开demo地址：http://localhost:1554/demos/wsp
+
+输入：rtsp://localhost:1554/group/door 即可访问。
+
+### 3.3 使用websocket-rtsp
 打开demo地址：http://localhost:1554/demos/rtsp
 
 输入：ws://localhost:1554/ws/group/door 即可访问。
 
-### 3.3 使用http-flv访问
+### 3.4 使用http-flv访问
 打开demo地址：http://localhost:1554/demos/flv
 
 输入：http://locaolhost:1554/streams/group/door.flv 即可访问。
 
 **注意：**由于 Chrome 对长连接的流限制为6个，因此如果使用 Chrome 打开更多建议使用websocket-flv。
 
-### 3.4 使用 websocket-flv访问
+### 3.5 使用 websocket-flv访问
 打开demo地址：http://localhost:1554/demos/flv
 
 输入：ws://locaolhost:1554/ws/group/door.flv 即可访问。
 
-### 3.5 使用 http-hls访问
+### 3.6 使用 http-hls访问
 由于 iOS的Safari不支持上述任何http访问模式，请使用 http-hls
 
 在浏览器输入: http://localhost:1554/streams/group/door.m3m8 即可访问。
 
 **注意:** 由于http-hls的段文件默认被放在内存中，占用大量的内存；如系统内存不足，请配置存储路径。
 
-### 3.6 访问 h265 flv
+### 3.7 访问 h265 flv
 打开demo地址：http://localhost:1554/demos/flv265
 
 输入：http://locaolhost:1554/streams/group/door.flv 即可访问。
