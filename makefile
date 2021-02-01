@@ -14,7 +14,13 @@ build:
 	cp -r demos bin/
 	cp -r docs bin/
 
-# linux compilation
+build-docker:
+	CGO_ENABLED=$(ENABLED_CGO) GOOS=linux GOARCH=amd64 $(GOBUILD) -o bin/docker/$(BINARY_NAME) -ldflags "-X github.com/cnotch/ipchub/config.Version=$(VERSION)" .
+	cp -r demos bin/docker/
+	cp -r docs bin/docker/
+	docker build -t ipchub .
+	rm -rf bin/docker
+	
 build-linux-amd64:
 	CGO_ENABLED=$(ENABLED_CGO) GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_DIR)/linux/amd64/$(BINARY_NAME) -ldflags "-X github.com/cnotch/ipchub/config.Version=$(VERSION)" .
 	cp -r demos $(BINARY_DIR)/linux/amd64/
