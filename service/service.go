@@ -119,7 +119,7 @@ func (s *Service) Listen() (err error) {
 		}
 	}
 
-	s.logger.Infof("service started(%s).", config.Version)
+	s.logger.Infof("service started(v%s).", config.Version)
 	s.logger = xlog.L()
 	// Block
 	select {}

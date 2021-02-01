@@ -18,12 +18,12 @@ import (
 
 // 服务名
 const (
-	Vendor  = "CAOHONGJU"
-	Name    = "ipchub"
-	Version = "V1.1.0"
+	Vendor = "CAOHONGJU"
+	Name   = "ipchub"
 )
 
 var (
+	Version       = "0"
 	globalC       *config
 	consoleAppDir string
 	demosAppDir   string
