@@ -3,28 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <title>RTSP player example(based streamedian)</title>
-	<link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <div id="sourcesNode"></div>
 <div>
-    <input  id="stream_url" size="80" value="rtsp://localhost:1554/test/live1">
+    <input  id="stream_url" value="rtsp://localhost:1554/test/live1" size="36">
     <button id="set_new_url">Set</button>
+  <div class="custom-control custom-switch">
+  <input type="checkbox" id="continuous_recording">
+  <label class="custom-control-label" for="customSwitch1">Continuous recording</label>
 </div>
 <div>
-    <p style="color:#808080">Enter your rtsp link to the stream, for example: "rtsp://localhost:1554/test/live1"</p>
-    <p style="color:#808080">If need token,for example: "rtsp://localhost:1554/test/live1?token=4df8f5d5d680385cb07c2e354dd0f3f3"</p>
+    <p style="color:#808080">Enter your rtsp link to the stream, for example: "rtsp://192.168.1.1:554/h264"</p>
 </div>
 
 <div>
+    <span style="color:#808080">Change video file length of the continuous recording</span>
+    <input id="continuous_file_length" type="range" min="10000" max="200000" value="180000" step="1000" style="width:40%;">
+    <p id="continuous_file_length_label">180sec.</p>
+</div>
+
+<div>
+    <span style="color:#808080">Change video file length of the event recording</span>
+    <input id="event_file_length" type="range" min="10000" max="200000" value="180000" step="1000" style="width:40%;">
+    <p id="event_file_length_label">180sec.</p>
+</div>
+
+<div>
+    <span style="color:#808080">Change buffer duration</span>
     <input id="buffer_duration" type="range" min="10" max="200" style="width:40%;">
-    <span  id="buffer_value">120sec.</span>
+    <p id="buffer_value">120sec.</p>
 </div>
 
-<div>
-    <p style="color:#808080">Change buffer duration</p>
-</div>
-
+<canvas id="video_canvas" width="0" height="0"></canvas>
 <video id="test_video" controls autoplay>
     <!--<source src="rtsp://192.168.10.205:554/ch01.264" type="application/x-rtsp">-->
     <!--<source src="rtsp://wowzaec2demo.streamlock.net/vod/mp4:BigBuckBunny_115k.mov" type="application/x-rtsp">-->
@@ -37,21 +49,42 @@
         <output for="rate" id="rate_res">live</output>
     </div>
     <div>
-        <button id="to_end" class="btn btn-success">live</button>
+        <button id="to_end" class="btn btn-success" disabled>live</button>
+        <button id="event_recording" class="btn btn-success" disabled>Start recording</button>
     </div>
 </div>
+<div>
+    <span style="color:#808080">Select a recorded file to playback</span>
+    <input id="file_input" type="file" accept=".mp4">
+</div>
 
+<p><br>Have any suggestions to improve our player? <br>Feel free to leave comments or ideas email: streamedian.player@gmail.com</p>
 <p>View HTML5 RTSP video player log</p>
 <div id="pllogs" class="logs"></div>
 <button class="btn btn-success" onclick="cleanLog(pllogs)">clear</button>
 <button class="btn btn-success" onclick="scrollset(pllogs, true)">scroll up</button>
 <button class="btn btn-success" onclick="scrollset(pllogs, false)">scroll down</button>
 <button id="scrollSetPl" class="btn btn-success" onclick="scrollswitch(pllogs)">Scroll off</button>
+<button class="btn btn-success" onclick="statisticRequest('GET_INFO')">Get statistic</button>
+<button class="btn btn-success" onclick="statisticRequest('SUBSCRIBE')">Subscribe statistic</button>
 <br/><br/>
 
-<!-- Path to player js -->
-<!-- <script src="free.player.1.8.js"></script> -->
-<script src="streamedian_1_8_5_3.min.js"></script> 
+<b>How to use the player in the global network</b>
+<p>
+With an empty license file, you can only watch the stream on your computer locally (intranet).<br/>
+If you would like to stream into the global network please take a key to activate the license.<br/>
+You have personal 1 month validity key in the personal cabinet.<br/>
+To activate key, please, use the activation application that is placed:
+</p>
+<p>
+<b>Windows:</b> C:\Program Files\Streamedian\WS RTSP Proxy Server\activation_app<br/>
+<b>Mac OS:</b> /Library/Application Support/Streamedian/WS RTSP Proxy Server/activation_app<br/>
+<b>Linux (Ubunty, Debian, Centos, Fedora ):</b> /usr/bin/wsp/activation_app<br/>
+</p>
+<p>For more information go to <a href="https://streamedian.com/docs/">documentation</a></p>
+
+<script src="libde265.js"></script>
+<script src="free.player.3.1.js"></script>
 
 <script>
     var scrollStatPl = true;
@@ -171,25 +204,71 @@
                 });
             }
         };
+    
+        var link = document.createElement('a');
+        let dataHandler = function(data, prefix) {
+            let blob = new Blob([data], {type: "application/mp4"});
+            link.href = window.URL.createObjectURL(blob);
+            link.download = `${prefix}_${formatDate(new Date())}.mp4`;
+            link.click();
+        }
+
+        let formatHandler = function (format) {
+            if (html5Player && html5Canvas) {
+                if (format === 'h265') {
+                    html5Player.setAttribute('hidden', true);
+                    html5Canvas.removeAttribute('hidden');
+                } else if (format === 'h264') {
+                    html5Player.removeAttribute('hidden');
+                    html5Canvas.setAttribute('hidden', true);
+                }
+            }
+        }
+
+        function formatDate(dateObj) {
+            let month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            let date = String(dateObj.getDate()).padStart(2, '0');
+            let hours = String(dateObj.getHours()).padStart(2, '0');
+            let minutes = String(dateObj.getMinutes()).padStart(2, '0');
+            let seconds = String(dateObj.getSeconds()).padStart(2, '0');
+            return`${dateObj.getFullYear()}-${month}-${date} ${hours}:${minutes}:${seconds}`;
+        }
 
         var playerOptions = {
-            socket: "ws://localhost:1554/ws/test/live1",            redirectNativeMediaErrors : true,
+            socket: "ws://localhost:8088/ws/",
+            redirectNativeMediaErrors : true,
             bufferDuration: 30,
             errorHandler: errHandler,
-            infoHandler: infHandler
+            infoHandler: infHandler,
+            dataHandler: dataHandler,
+            videoFormatHandler: formatHandler,
+            continuousFileLength: 180000,
+            eventFileLength: 10000,
+            canvas: 'video_canvas',
         };
 
         var html5Player  = document.getElementById("test_video");
+        var html5Canvas  = document.getElementById("video_canvas");
         var urlButton    = document.getElementById("set_new_url");
         var urlEdit      = document.getElementById("stream_url");
         var bufferRange  = document.getElementById("buffer_duration");
         var bufferValue  = document.getElementById("buffer_value");
+        var continuousRecording  = document.getElementById("continuous_recording");
+        var eventRecording = document.getElementById("event_recording");
+        var continuousFileLength  = document.getElementById("continuous_file_length");
+        var continuousFileLengthLabel  = document.getElementById("continuous_file_length_label");
+        var eventFileLength  = document.getElementById("event_file_length");
+        var eventFileLengthLabel  = document.getElementById("event_file_length_label");
 
         var player = Streamedian.player('test_video', playerOptions);
         var nativePlayer = document.getElementById('test_video');
         var range = document.getElementById('rate');
         var set_live = document.getElementById('to_end');
         var range_out = document.getElementById('rate_res');
+
+        var socket;
+        var keepAliveTimer;
+        var password = btoa('streamedian');
 
         range.addEventListener('input', function () {
             nativePlayer.playbackRate = range.value;
@@ -201,10 +280,33 @@
             nativePlayer.playbackRate = 1;
             nativePlayer.currentTime = nativePlayer.buffered.end(0);
         });
+        
+        // Tab switching and window minimization processing 
+        // for browsers that use the chrome rendering engine.
+        if (!!window.chrome) {
+            document.addEventListener('visibilitychange', function() {
+                if(document.visibilityState === 'hidden') {
+                    nativePlayer.pause()
+                } else {
+                    nativePlayer.play();
+
+                    // Automatic jump to buffer end for view live video when returning to the web page. 
+                    setTimeout(function() {
+                        nativePlayer.currentTime = nativePlayer.buffered.end(0)
+                    }, 3000); // Delay for a few seconds is required for the player has time to update the timeline.
+                }
+            });
+        }
 
         var updateRangeControls = function(){
             bufferRange.value     =  player.bufferDuration;
             bufferValue.innerHTML = bufferRange.value + "sec.";
+
+            continuousFileLength.value = player.continuousRecording.fileLength;
+            continuousFileLengthLabel.innerText = `${continuousFileLength.value / 1000} sec.`;
+
+            eventFileLength.value = player.eventRecording.fileLength;
+            event_file_length_label.innerText = `${eventFileLength.value / 1000} sec.`;
         };
 
         bufferRange.addEventListener('input', function(){
@@ -215,6 +317,32 @@
 
         bufferRange.innerHTML = player.bufferDuration + "sec.";
         updateRangeControls();
+
+        continuousRecording.addEventListener('change', function(event) {
+            player.continuousRecording.record(event.target.checked);
+            continuousFileLength.disabled = event.target.checked;
+        });
+
+        eventRecording.addEventListener('click', function(event) {
+            let state = !event.target.classList.contains('btn-recording');
+            player.eventRecording.record(state);
+            event.target.classList.toggle('btn-success');
+            event.target.classList.toggle('btn-recording');
+            event.target.innerText = state ? 'Stop recording': 'Start recording';
+            eventFileLength.disabled = state;
+        });
+
+        continuousFileLength.addEventListener('input', function(event) {
+            let milliseconds = parseInt(event.target.value, 10);
+            player.continuousRecording.fileLength = milliseconds;
+            continuousFileLengthLabel.innerText = `${milliseconds / 1000} sec.`;
+        });
+
+        eventFileLength.addEventListener('input', function(event) {
+            let milliseconds = parseInt(event.target.value, 10);
+            player.eventRecording.fileLength = milliseconds;
+            eventFileLengthLabel.innerText = `${milliseconds / 1000} sec.`;
+        });
 
         urlButton.onclick = ()=> {
             setPlayerSource(urlEdit.value);
@@ -243,8 +371,101 @@
             rtspUrl.pathname = "/ws"+rtspUrl.pathname
             playerOptions.socket = rtspUrl.href
             // <========= end
+
             player = Streamedian.player("test_video", playerOptions);
+            player.continuousRecording.record(continuousRecording.checked);
             updateRangeControls();
+
+            eventRecording.removeAttribute('disabled');
+            set_live.removeAttribute('disabled');
+        }
+
+        file_input.addEventListener('change', function(event) {
+            html5Player.src = URL.createObjectURL(event.target.files[0]);
+        });
+
+        window.addEventListener('unload', function() {
+            player.continuousRecording.record(false);
+            player.eventRecording.record(false);
+        });
+
+        function statisticRequest(cmd) {
+            if (socket == undefined || socket.readyState != 1) {
+                socket = new WebSocket(playerOptions.socket, "statistic");
+                socket.onmessage = onStatistic;
+                socket.onopen = function() {
+                    socket.send(`WSP/1.1 ${cmd}\nAuthorization: ${password}\nseq: 1\n\n`);
+
+                    keepAliveTimer = setInterval(()=>{
+                        socket.send(`WSP/1.1 KEEPALIVE\nAuthorization: ${password}\nseq: 1\n\n`);
+                    }, 30000); // Every 30 seconds
+                }
+
+                socket.onclose = function() {
+                    clearInterval(keepAliveTimer);
+                }
+            } else {
+                socket.send(`WSP/1.1 ${cmd}\nAuthorization: ${password}\nseq: 1\n\n`);
+            }
+        }
+
+        function onStatistic(msg) {
+            if (msg.data.length) {
+                let data = msg.data.split('\r\n\r\n');
+
+                if (data.length > 1) {
+                    parseStatistic(JSON.parse(data[1]));
+                } else {
+                    console.log("------------- Info -------------");
+                    parseSession(JSON.parse(data[0]));
+                }
+
+            }
+        };
+
+        function parseSession(session) {
+            console.log(`Requested domain: ${session.user.requestedDomain}`);
+            console.log(`User address: ${session.user.address}`);
+            console.log(`RTSP address: ${session.rtsp.host}:${session.rtsp.port}`);
+            console.log(`Session start time: ${new Date(Number(session.connectionTime + '000'))}`);
+
+            if (session.disconnectionTime) {
+                console.log(`Session end time: ${new Date(Number(session.disconnectionTime + '000'))}`);
+            }
+
+            console.log('---');
+        }
+
+        function parseStatistic(data) {
+            for (let i = 0; i < data.licenses.length; i++) {
+                let license = data.licenses[i].license;
+                let sessions = data.licenses[i].sessions;
+                let sessionNumber = data.licenses[i].sessionNumber;
+
+                console.log("------------- Info -------------");
+                console.log('              License ' + i);
+                console.log(`Activation Key: ${license.key}`)
+                console.log(`Expires: ${license.expiresAt}`);
+                console.log(`License max posible watchers: ${license.maxWatchers}`);
+                
+                if (license.maxWatchers !== 'unlimited') {
+                    console.log(`Remain watchers: ${license.maxWatchers - sessionNumber}`);
+                }
+
+                console.log('Sessions:');
+                for (let j = 0; j < sessions.length; j++) {
+                    parseSession(sessions[j]);
+                }
+            }
+        }
+
+        function getStatistic() {
+            statisticRequest('GET_INFO', password);
+            socket.onmessage = statisticInfoParse;
+        }
+
+        function subscribeStatistic() {
+            statisticRequest('SUBSCRIBE', password);
         }
     }
 </script>

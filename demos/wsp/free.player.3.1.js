@@ -61,8 +61,6 @@
     }
     const Log = new Logger();
 
-    // export * from 'bp_logger';
-
     class Url {
         static parse(url) {
             let ret = {};
@@ -274,8 +272,6 @@
             this.eventSource = null;
         }
     }
-
-    // export * from 'bp_event';
 
     /**
      * Generate MP4 Box
@@ -2012,7 +2008,6 @@
                 case NALU.EOSEQ:
                 case NALU.EOSTR:
                     push = false;
-                default:
             }
             if (push === null && unit.getNri() > 0 ) {
                 push=true;
@@ -2022,10 +2017,10 @@
 
         static parceSliceHeader(data) {
             let decoder = new ExpGolomb(data);
-            let first_mb = decoder.readUEG();
+            decoder.readUEG();
             let slice_type = decoder.readUEG();
-            let ppsid = decoder.readUEG();
-            let frame_num = decoder.readUByte();
+            decoder.readUEG();
+            decoder.readUByte();
             // console.log(`first_mb: ${first_mb}, slice_type: ${slice_type}, ppsid: ${ppsid}, frame_num: ${frame_num}`);
             return slice_type;
         }
@@ -2067,16 +2062,15 @@
                 frameCropTopOffset = 0,
                 frameCropBottomOffset = 0,
                 sarScale = 1,
-                profileIdc,profileCompat,levelIdc,
-                numRefFramesInPicOrderCntCycle, picWidthInMbsMinus1,
+                profileIdc,numRefFramesInPicOrderCntCycle, picWidthInMbsMinus1,
                 picHeightInMapUnitsMinus1,
                 frameMbsOnlyFlag,
                 scalingListCount;
             decoder.readUByte();
             profileIdc = decoder.readUByte(); // profile_idc
-            profileCompat = decoder.readBits(5); // constraint_set[0-4]_flag, u(5)
+            decoder.readBits(5); // constraint_set[0-4]_flag, u(5)
             decoder.skipBits(3); // reserved_zero_3bits u(3),
-            levelIdc = decoder.readUByte(); //level_idc u(8)
+            decoder.readUByte(); //level_idc u(8)
             decoder.skipUEG(); // seq_parameter_set_id
             // some profiles have more optional data we don't need
             if (profileIdc === 100 ||
@@ -2442,14 +2436,17 @@
 
     class PayloadType {
         static get H264() {return 1;}
+        static get H265() {return 1;}
         static get AAC() {return 2;}
 
         static get map() {return {
+            [PayloadType.H265]: 'video',
             [PayloadType.H264]: 'video',
             [PayloadType.AAC]: 'audio'
         }};
 
         static get string_map() {return  {
+            H265: PayloadType.H265,
             H264: PayloadType.H264,
             AAC: PayloadType.AAC,
             'MP4A-LATM': PayloadType.AAC,
@@ -2572,6 +2569,8 @@
                 this.initSegments[track_type] = MP4.initSegment([track.mp4track], track.duration*track.timescale, track.timescale);
                 initmse.push(this.initMSE(track_type, track.mp4track.codec));
             }
+
+            this.eventSource.dispatchEvent('mp4initsegement', this.tracks);
             this.initialized = true;
             return Promise.all(initmse).then(()=>{
                 //this.mse.play();
@@ -2623,7 +2622,9 @@
                     let track = this.tracks[track_type];
                     let pay = track.getPayload();
                     if (pay && pay.byteLength) {
-                        this.mse.feed(track_type, [MP4.moof(track.seq, track.scaled(track.firstDTS), track.mp4track), MP4.mdat(pay)]);
+                        let payload = [MP4.moof(track.seq, track.scaled(track.firstDTS), track.mp4track), MP4.mdat(pay)];
+                        this.mse.feed(track_type, payload);
+                        this.eventSource.dispatchEvent('mp4payload', payload);
                         track.flush();
                     }
                 }
@@ -2778,8 +2779,6 @@
         }
 
     }
-
-    // export * from 'bp_statemachine';
 
     const Log$6 = getTagged("parser:sdp");
 
@@ -3062,6 +3061,14 @@
 
             return res;
         }
+
+        getVideoFormat() {
+            if (!this.videoFormat) {
+                this.videoFormat = this.media.video.rtpmap[this.media.video.fmt[0]].name.toLowerCase();
+            }
+
+            return this.videoFormat;
+        }
     }
 
     const LOG_TAG$2 = "rtsp:stream";
@@ -3107,16 +3114,17 @@
             } else if (Url.isAbsolute(`${sessionBlock.control}${track.control}`)) {
                 return `${sessionBlock.control}${track.control}`;
             } else if (Url.isAbsolute(`${this.client.contentBase}${track.control}`)) {
+                /* Check the end of the address for a separator */
+                if (this.client.contentBase[this.client.contentBase.length - 1] !== '/') {
+                    return `${this.client.contentBase}/${track.control}`;
+                } 
+
                 /* Should probably check session level control before this */
                 return `${this.client.contentBase}${track.control}`;
             }
             else {//need return default
                 return track.control;
             }
-            Log$7.error('Can\'t determine track URL from ' +
-                'block.control:' + track.control + ', ' +
-                'session.control:' + sessionBlock.control + ', and ' +
-                'content-base:' + this.client.contentBase);
         }
 
         getControlURL() {
@@ -3170,9 +3178,8 @@
         sendSetup(session = null) {
             this.state = RTSPClientSM.STATE_SETUP;
             this.rtpChannel = this.client.interleaveChannelIndex;
-            let interleavedChannels = this.client.interleaveChannelIndex++ + "-" + this.client.interleaveChannelIndex++;
             let params = {
-                'Transport': `RTP/AVP/TCP;unicast;interleaved=${interleavedChannels}`,
+                'Transport': this.make_transport_string(),
                 'Date': new Date().toUTCString()
             };
             if(session){
@@ -3182,9 +3189,9 @@
                 this.session = _data.headers['session'].split(';');
                 let transport = _data.headers['transport'];
                 if (transport) {
-                    let interleaved = transport.match(/interleaved=([0-9]+)-([0-9]+)/)[1];
+                    let interleaved = transport.match(/interleaved=([0-9]+)-([0-9]+)/);
                     if (interleaved) {
-                        this.rtpChannel = Number(interleaved);
+                        this.rtpChannel = Number(interleaved[1]);
                     }
                 }
 
@@ -3205,6 +3212,16 @@
                 this.startKeepAlive();
                 return {track: this.track, data: _data, session: this.session[0]};
             });
+        }
+
+        make_transport_string() {
+            let udp_port = this.client.udp_port;
+            if (udp_port) {
+                return `RTP/AVP;unicast;client_port=${udp_port}-${udp_port + 2}`;
+            }
+
+            let interleavedChannels = this.client.interleaveChannelIndex++ + "-" + this.client.interleaveChannelIndex++;
+            return `RTP/AVP/TCP;unicast;interleaved=${interleavedChannels}`;
         }
     }
 
@@ -3505,9 +3522,8 @@
             }
 
             this.headerLength = pktIndex;
-            let padLength = 0;
             if (this.padding) {
-                padLength = bytes.getUint8(pkt.byteLength-1);
+                bytes.getUint8(pkt.byteLength-1);
             }
 
             // this.bodyLength   = pkt.byteLength-this.headerLength-padLength;
@@ -3660,14 +3676,13 @@
         parseAggregationPacket(rawData, header, dts, pts) {
             let data = new DataView(rawData.buffer, rawData.byteOffset, rawData.byteLength);
             let nal_start_idx = 0;
-            let don = null;
             if (NALU.STAP_B === header.type) {
-                don = data.getUint16(nal_start_idx);
+                data.getUint16(nal_start_idx);
                 nal_start_idx += 2;
             }
             let ret = [];
             while (nal_start_idx < data.byteLength) {
-                let size = data.getUint16(nal_start_idx);
+                let size = data.getUint16(nal_start_idx) - 1;
                 nal_start_idx += 2;
                 let header = NALUAsm.parseNALHeader(data.getInt8(nal_start_idx));
                 nal_start_idx++;
@@ -3690,9 +3705,8 @@
             let ret = null;
 
             nal_start_idx++;
-            let don = 0;
             if (NALU.FU_B === header.type) {
-                don = data.getUint16(nal_start_idx);
+                data.getUint16(nal_start_idx);
                 nal_start_idx += 2;
             }
 
@@ -3802,15 +3816,15 @@
                 let dts = 0;
                 for (let offset=0; offset<auHeadersLengthInBits;) {
                     let size = bits.readBits(sizeLength);
-                    let idx = bits.readBits(offset?indexDeltaLength:indexLength);
+                    bits.readBits(offset?indexDeltaLength:indexLength);
                     offset+=sizeLength+(offset?indexDeltaLength:indexLength)/*+2*/;
                     if (/*ctsPresent &&*/ CTSDeltaLength) {
-                        let ctsPresent = bits.readBits(1);
+                        bits.readBits(1);
                         cts = bits.readBits(CTSDeltaLength);
                         offset+=CTSDeltaLength;
                     }
                     if (/*dtsPresent && */DTSDeltaLength) {
-                        let dtsPresent = bits.readBits(1);
+                        bits.readBits(1);
                         dts = bits.readBits(DTSDeltaLength);
                         offset+=CTSDeltaLength;
                     }
@@ -4220,13 +4234,15 @@
         static get STATE_INITIAL() {return  1 << 0;}
         static get STATE_OPTIONS() {return 1 << 1;}
         static get STATE_DESCRIBE () {return  1 << 2;}
-        static get STATE_SETUP() {return  1 << 3;}
-        static get STATE_STREAMS() {return 1 << 4;}
-        static get STATE_TEARDOWN() {return  1 << 5;}
-        static get STATE_PLAY() {return  1 << 6;}
-        static get STATE_PLAYING() {return  1 << 7;}
-        static get STATE_PAUSE() {return  1 << 8;}
-        static get STATE_PAUSED() {return  1 << 9;}
+        static get STATE_SWITCH () {return 1 << 3;}
+        static get STATE_UDP () {return 1 << 4;}
+        static get STATE_SETUP() {return  1 << 5;}
+        static get STATE_STREAMS() {return 1 << 6;}
+        static get STATE_TEARDOWN() {return  1 << 7;}
+        static get STATE_PLAY() {return  1 << 8;}
+        static get STATE_PLAYING() {return  1 << 9;}
+        static get STATE_PAUSE() {return  1 << 10;}
+        static get STATE_PAUSED() {return  1 << 11;}
         // static STATE_PAUSED = 1 << 6;
 
         constructor(parent) {
@@ -4238,6 +4254,7 @@
             this.rtp_channels = new Set();
             this.sessions = {};
             this.ontracks = null;
+            this.udp_port = null;
 
             this.addState(RTSPClientSM.STATE_INITIAL,{
             }).addState(RTSPClientSM.STATE_OPTIONS, {
@@ -4246,6 +4263,12 @@
             }).addState(RTSPClientSM.STATE_DESCRIBE, {
                 activate: this.sendDescribe,
                 finishTransition: this.onDescribe
+            }).addState(RTSPClientSM.STATE_SWITCH, {
+                activate: this.sendSwitch,
+                finishTransition: this.onSwitch
+            }).addState(RTSPClientSM.STATE_UDP, {
+                activate: this.change_rtp_transport,
+                finishTransition: this.on_change_rtp_transport
             }).addState(RTSPClientSM.STATE_SETUP, {
                 activate: this.sendSetup,
                 finishTransition: this.onSetup
@@ -4262,6 +4285,10 @@
                 .addTransition(RTSPClientSM.STATE_INITIAL, RTSPClientSM.STATE_TEARDOWN)
                 .addTransition(RTSPClientSM.STATE_OPTIONS, RTSPClientSM.STATE_DESCRIBE)
                 .addTransition(RTSPClientSM.STATE_DESCRIBE, RTSPClientSM.STATE_SETUP)
+                .addTransition(RTSPClientSM.STATE_DESCRIBE, RTSPClientSM.STATE_SWITCH)
+                .addTransition(RTSPClientSM.STATE_SWITCH, RTSPClientSM.STATE_SETUP)
+                .addTransition(RTSPClientSM.STATE_DESCRIBE, RTSPClientSM.STATE_UDP)
+                .addTransition(RTSPClientSM.STATE_UDP, RTSPClientSM.STATE_SETUP)
                 .addTransition(RTSPClientSM.STATE_SETUP, RTSPClientSM.STATE_STREAMS)
                 .addTransition(RTSPClientSM.STATE_TEARDOWN, RTSPClientSM.STATE_INITIAL)
                 // .addTransition(RTSPClientSM.STATE_STREAMS, RTSPClientSM.STATE_PAUSED)
@@ -4269,6 +4296,7 @@
                 .addTransition(RTSPClientSM.STATE_STREAMS, RTSPClientSM.STATE_TEARDOWN)
                 // .addTransition(RTSPClientSM.STATE_PAUSED, RTSPClientSM.STATE_TEARDOWN)
                 .addTransition(RTSPClientSM.STATE_SETUP, RTSPClientSM.STATE_TEARDOWN)
+                .addTransition(RTSPClientSM.STATE_SWITCH, RTSPClientSM.STATE_TEARDOWN)
                 .addTransition(RTSPClientSM.STATE_DESCRIBE, RTSPClientSM.STATE_TEARDOWN)
                 .addTransition(RTSPClientSM.STATE_OPTIONS, RTSPClientSM.STATE_TEARDOWN);
 
@@ -4336,9 +4364,15 @@
         }
 
         onData(data) {
-            let channel = data[1];
-            if (this.rtp_channels.has(channel)) {
-                this.onRTP({packet: data.subarray(4), type: channel});
+            if (this.sdp.getVideoFormat() === 'h265') {
+                this.parent.eventSource.dispatchEvent('h265payload', data);
+            } else if (this.udp_port) {
+                this.onRTP({packet: data});
+            } else {
+                let channel = data[1];
+                if (this.rtp_channels.has(channel)) {
+                    this.onRTP({packet: data.subarray(4), type: channel});
+                }
             }
         }
 
@@ -4425,7 +4459,7 @@
                 'User-Agent': RTSPClientSM.USER_AGENT
             });
             if (this.authenticator) {
-                _params['Authorization'] = this.authenticator(_cmd);
+                _params['Authorization'] = this.authenticator(_cmd, _host);
             }
             return this.send(MessageBuilder.build(_cmd, _host, _params, _payload), _cmd).catch((e)=>{
                 if ((e instanceof AuthError) && !_params['Authorization'] ) {
@@ -4448,6 +4482,10 @@
                 let response = await this.transport.send(_data);
                 let parsed = this.parse(response);
                 // TODO: parse status codes
+                if (parsed.code == 461) {
+                    return Promise.reject(parsed.code);
+                }
+
                 if (parsed.code == 401 /*&& !this.authenticator */) {
                     Log$9.debug(parsed.headers['www-authenticate']);
                     let auth = parsed.headers['www-authenticate'];
@@ -4471,13 +4509,13 @@
                             let [k,v] = c.split('=');
                             parsedChunks[k] = v.substr(1, v.length-2);
                         }
-                        this.authenticator = (_method)=>{
+                        this.authenticator = (_method, _url)=>{
                             let ep = this.parent.endpoint;
                             let ha1 = md5(`${ep.user}:${parsedChunks.realm}:${ep.pass}`);
-                            let ha2 = md5(`${_method}:${this.url}`);
+                            let ha2 = md5(`${_method}:${_url}`);
                             let response = md5(`${ha1}:${parsedChunks.nonce}:${ha2}`);
                             let tail=''; // TODO: handle other params
-                            return `Digest username="${ep.user}", realm="${parsedChunks.realm}", nonce="${parsedChunks.nonce}", uri="${this.url}", response="${response}"${tail}`;
+                            return `Digest username="${ep.user}", realm="${parsedChunks.realm}", nonce="${parsedChunks.nonce}", uri="${_url}", response="${response}"${tail}`;
                         };
                     } else {
                         this.authenticator = ()=>{return `Basic ${btoa(this.parent.endpoint.auth)}`;};
@@ -4533,6 +4571,38 @@
                 throw new Error("No tracks in SDP");
             }
 
+            if (this.sdp.getVideoFormat() === 'h265') {
+                this.transitionTo(RTSPClientSM.STATE_SWITCH);
+                this.parent.eventSource.dispatchEvent('videoFormat', 'h265');
+            } else {
+                this.transitionTo(RTSPClientSM.STATE_SETUP);
+                this.parent.eventSource.dispatchEvent('videoFormat', 'h264');
+            }
+        }
+
+        sendSwitch() {
+            return this.transport.socket().send('h265', 'SWITCH');
+        }
+
+        onSwitch(data) {
+            this.transitionTo(RTSPClientSM.STATE_SETUP);
+        }
+
+        change_rtp_transport() {
+            let payload = `udp,${this.url},`;
+            if (this.authenticator) {
+                payload += this.authenticator(this.url, 'TEARDOWN');
+            }
+
+            return this.transport.socket().send(payload, 'SWITCH').promise.then((response)=>{
+                return response;
+            }).catch((reason)=>{
+                console.error(reason.msg);
+            });
+        }
+
+        on_change_rtp_transport(response) {
+            this.udp_port = response.payload;
             this.transitionTo(RTSPClientSM.STATE_SETUP);
         }
 
@@ -4632,10 +4702,14 @@
                         this.ontracks(tracks);
                     }
                 })
-            }).catch((e)=>{
-                console.error(e);
-                this.stop();
-                this.reset();
+            }).catch((reason)=>{
+                if (reason == 461) {
+                    this.transitionTo(RTSPClientSM.STATE_UDP);
+                } else {
+                    console.error(e);
+                    this.stop();
+                    this.reset();
+                }
             });
         }
 
@@ -4913,9 +4987,9 @@
         typeName() {
             if (this.tag === undefined)
                 return "unknown";
-            var tagClass = this.tag >> 6,
-                tagConstructed = (this.tag >> 5) & 1,
-                tagNumber = this.tag & 0x1F;
+            var tagClass = this.tag >> 6;
+                (this.tag >> 5) & 1;
+                var tagNumber = this.tag & 0x1F;
             switch (tagClass) {
                 case 0: // universal
                     switch (tagNumber) {
@@ -5484,11 +5558,11 @@
       }
       return c;
     }
-    if(navigator.appName == "Microsoft Internet Explorer") {
+    if((navigator.appName == "Microsoft Internet Explorer")) {
       BigInteger.prototype.am = am2;
       dbits = 30;
     }
-    else if(navigator.appName != "Netscape") {
+    else if((navigator.appName != "Netscape")) {
       BigInteger.prototype.am = am1;
       dbits = 26;
     }
@@ -8891,8 +8965,6 @@
       return this.getKey().getPublicBaseKeyB64();
     };
 
-    // export * from 'jsencrypt';
-
     class BaseTransport {
         constructor(endpoint, stream_type, config={}) {
             this.stream_type = stream_type;
@@ -8947,7 +9019,7 @@
         // }
     }
 
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     //navigator.hardwareConcurrency || 3;
 
     function SMediaError(data) {
@@ -9394,7 +9466,7 @@
             return msg;
         }
 
-        send(payload) {
+        send(payload, cmd) {
             if (this.ctrlChannel.readyState != WebSocket.OPEN) {
                 this.close();
                 this.error(SMediaError.MEDIA_ERR_TRANSPORT);
@@ -9409,21 +9481,235 @@
                 seq:data.seq,
                 promise: new Promise((resolve, reject)=>{
                     this.awaitingPromises[data.seq] = {resolve, reject};
-                    let msg = this.builder.build(WSPProtocol.CMD_WRAP, data, payload);
+                    let msg = this.builder.build(cmd || WSPProtocol.CMD_WRAP, data, payload);
                     Log$a.debug(msg);
                     this.ctrlChannel.send(this.encrypt(msg));
                 })};
         }
     }
 
+    class MediaRecorder {
+        constructor(parent, prefix) {
+            this.parent = parent;
+            this.prefix = prefix;
+            this.remuxer;
+            this.header;
+            this.firstBuffer = new Uint8Array(0);
+            this.secondBuffer = new Uint8Array(0);
+            this.byteBuffer = this.firstBuffer;
+            this.isSwaped = false;
+            this.isPaused = false;
+            this.isRecording = false;
+
+            this.fileLength = 180000; /*download every 3 minutes*/
+        }
+
+        setFileLength(milliseconds) {
+            if (milliseconds) {
+                this.fileLength = milliseconds;
+            }
+        }
+
+        init(event) {
+            let tracks = event.detail;
+            let tracks_list = [];
+            for (let key in tracks) {
+                let type = tracks[key].mp4track.type;
+                if (type === "video" || type === "audio") {
+                    tracks_list.push(tracks[key].mp4track);
+                }
+            }
+
+            this.header = MP4.initSegment(tracks_list, tracks[1].duration*tracks[1].timescale, tracks[1].timescale);
+        }
+
+        pushData(event) {
+            if (this.isRecording) {
+                if (this.byteBuffer.length == 0) {
+                    this.setBuffer(this.header);
+                }
+
+                this.setBuffer(event.detail[0]);
+                this.setBuffer(event.detail[1]);
+            }
+        }
+
+        record(recordvalue) {
+            if (recordvalue) {
+                if (!this.isRecording) {
+                    this.flushInterval = setInterval(this.flush.bind(this), this.fileLength);
+                }
+            } else {
+                clearInterval(this.flushInterval);
+                this.flush();
+            }
+
+            this.isRecording = recordvalue;
+        }
+
+        pause(value) {
+            if (this.isRecording || this.isPaused) { 
+                this.record(!value);
+                this.isPaused = value;
+            }
+        }
+
+        setBuffer(data) {
+            if (this.isRecording) {
+                let tmp = new Uint8Array(this.byteBuffer.byteLength + data.byteLength);
+                tmp.set(new Uint8Array(this.byteBuffer), 0);
+                tmp.set(new Uint8Array(data), this.byteBuffer.byteLength);
+                this.byteBuffer = tmp;
+            }
+        }
+
+        swapBuffer() {
+            this.isSwaped = !this.isSwaped;
+
+            if (this.isSwaped) {
+                this.byteBuffer = this.secondBuffer;
+                this.firstBuffer = new Uint8Array(0);
+            } else {
+                this.byteBuffer = this.firstBuffer;
+                this.secondBuffer = new Uint8Array(0);
+            }
+        }
+
+        flush() {
+            let byteBuffer = this.byteBuffer;
+            this.swapBuffer();
+            if (this.header && byteBuffer.length > this.header.length) {
+                this.parent.mediadata(byteBuffer, this.prefix);
+            }
+        }
+
+        attachSource(remuxer) {
+            this.remuxer = remuxer;
+            this.remuxer.eventSource.addEventListener('mp4initsegement', this.init.bind(this));
+            this.remuxer.eventSource.addEventListener('mp4payload', this.pushData.bind(this));
+        }
+
+        dettachSource() {
+            if (this.remuxer) {
+                this.remuxer.eventSource.removeEventListener('mp4initsegement');
+                this.remuxer.eventSource.removeEventListener('mp4payload');
+                this.remuxer = null;
+            }
+        }
+
+        destroy() {
+            this.record(false);
+            this.dettachSource();
+        }
+    }
+
+    class H265Decoder {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.remuxer;
+            this.decoder;
+        }
+
+        pushData(event) {
+            if (this.decoder == undefined) {
+                this.initDecoder();
+            }
+
+            let err = this.decoder.push_data(event.detail);
+
+            if (!libde265.de265_isOK(err)) {
+                console.error(err, libde265.de265_get_error_text(err));
+                return;
+            }
+
+            this.decoder.decode(function(err) {
+                switch(err) {
+                case libde265.DE265_ERROR_WAITING_FOR_INPUT_DATA:
+                    return;
+
+                default:
+                    if (!libde265.de265_isOK(err)) {
+                        console.error(err, libde265.de265_get_error_text(err));
+                        return;
+                    }
+                }
+            });
+        }
+
+        setBuffer(data) {
+            if (this.isRecording) {
+                let tmp = new Uint8Array(this.byteBuffer.byteLength + data.byteLength);
+                tmp.set(new Uint8Array(this.byteBuffer), 0);
+                tmp.set(new Uint8Array(data), this.byteBuffer.byteLength);
+                this.byteBuffer = tmp;
+            }
+        }
+
+        attachSource(client) {
+            this.client = client;
+            this.client.eventSource.addEventListener('h265payload', this.pushData.bind(this));
+        }
+
+        dettachSource() {
+            if (this.client) {
+                this.client.eventSource.removeEventListener('h265payload');
+                this.client = null;
+            }
+        }
+
+        destroy() {
+            this.dettachSource();
+            this.decoder.free();
+        }
+
+        initDecoder() {
+            let that = this;
+            this.ctx = this.canvas.getContext("2d");
+            this.decoder = new libde265.Decoder();
+            this.decoder.set_image_callback(function(image) {
+                that.displayImage(image);
+                image.free();
+            });
+        }
+
+        displayImage(image) {    
+            var w = image.get_width();
+            var h = image.get_height();
+            if (w != this.canvas.width || h != this.canvas.height || !this.image_data) {
+                this.canvas.width = w;
+                this.canvas.height = h;
+                this.image_data = this.ctx.createImageData(w, h);
+                var image_data = this.image_data.data;
+                for (var i=0; i<w*h; i++) {
+                    image_data[i*4+3] = 255;
+                }
+            }
+        
+            var that = this;
+            image.display(this.image_data, function(display_image_data) {
+                if (window.requestAnimationFrame) {
+                    that.pending_image_data = display_image_data;
+                    window.requestAnimationFrame(function() {
+                        if (that.pending_image_data) {
+                            that.ctx.putImageData(that.pending_image_data, 0, 0);
+                            that.pending_image_data = null;
+                        }
+                    });
+                } else {
+                    that.ctx.putImageData(display_image_data, 0, 0);
+                }
+            });
+        }
+    }
+
     const Log$b = getTagged('wsp');
 
-    class StreamType$1 {
+    class StreamType {
         static get HLS() {return 'hls';}
         static get RTSP() {return 'rtsp';}
 
         static isSupported(type) {
-            return [StreamType$1.HLS, StreamType$1.RTSP].includes(type);
+            return [StreamType.HLS, StreamType.RTSP].includes(type);
         }
 
         static fromUrl(url) {
@@ -9435,11 +9721,11 @@
             }
             switch (parsed.protocol) {
                 case 'rtsp':
-                    return StreamType$1.RTSP;
+                    return StreamType.RTSP;
                 case 'http':
                 case 'https':
                     if (url.indexOf('.m3u8')>=0) {
-                        return StreamType$1.HLS;
+                        return StreamType.HLS;
                     } else {
                         return null;
                     }
@@ -9451,10 +9737,10 @@
         static fromMime(mime) {
             switch (mime) {
                 case 'application/x-rtsp':
-                    return StreamType$1.RTSP;
+                    return StreamType.RTSP;
                 case 'application/vnd.apple.mpegurl':
                 case 'application/x-mpegurl':
-                    return StreamType$1.HLS;
+                    return StreamType.HLS;
                 default:
                     return null;
             }
@@ -9470,6 +9756,12 @@
                 this.player = node;
             }
 
+            if (typeof opts.canvas == typeof '') {
+                this.canvas = document.getElementById(opts.canvas);
+            } else {
+                this.canvas = opts.canvas;
+            }
+
             let modules = opts.modules || {
                 client: RTSPClient,
                 transport: {
@@ -9478,6 +9770,8 @@
             };
             this.errorHandler = opts.errorHandler || null;
             this.infoHandler = opts.infoHandler || null;
+            this.dataHandler = opts.dataHandler || null;
+            this.videoFormatHandler = opts.videoFormatHandler || null;
             this.queryCredentials = opts.queryCredentials || null;
 
             this.bufferDuration_ = opts.bufferDuration || 120;
@@ -9485,6 +9779,11 @@
                 Log$b.warn("Expected number type for bufferDuration");
                 this.bufferDuration_ = 120;
             }
+
+            this.continuousRecording = new MediaRecorder(this, 'continuous');
+            this.eventRecording = new MediaRecorder(this, 'event');
+            this.continuousRecording.setFileLength(opts.continuousFileLength);
+            this.eventRecording.setFileLength(opts.eventFileLength);
 
             this.modules = {};
             for (let module of modules) {
@@ -9500,7 +9799,7 @@
                 }
             }
             
-            this.type = StreamType$1.RTSP;
+            this.type = StreamType.RTSP;
             this.url = null;
             if (opts.url && opts.type) {
                 this.url = opts.url;
@@ -9523,6 +9822,9 @@
             }
 
             this.player.addEventListener('play', ()=>{
+                this.continuousRecording.pause(false);
+                this.eventRecording.pause(false);
+
                 if (!this.isPlaying()) {
                     this.client.start();
                 }
@@ -9530,6 +9832,8 @@
 
             this.player.addEventListener('pause', ()=>{
                 this.client.stop();
+                this.continuousRecording.pause(true);
+                this.eventRecording.pause(true);
             }, false);
 
             this.player.addEventListener('seeking', ()=>{
@@ -9542,7 +9846,7 @@
                         if(this.player.currentTime < bStart){
                             this.player.currentTime = bStart;
                         }
-                        else{
+                        else {
                             this.player.currentTime = bEnd - 1;
                         }
                     }
@@ -9585,7 +9889,7 @@
             }
 
             for (let type in filteredModules) {
-                if (type == StreamType$1.fromMime(mimeType)) {
+                if (type == StreamType.fromMime(mimeType)) {
                     return true;
                 }
             }
@@ -9594,18 +9898,18 @@
 
         /// TODO: deprecate it?
         static canPlay(resource) {
-            return StreamType$1.fromMime(resource.type) || StreamType$1.fromUrl(resource.src);
+            return StreamType.fromMime(resource.type) || StreamType.fromUrl(resource.src);
         }
 
         canPlayUrl(src) {
-            let type = StreamType$1.fromUrl(src);
+            let type = StreamType.fromUrl(src);
             return (type in this.modules);
         }
 
         _checkSource(src) {
-            if (!src.dataset['ignore'] && src.src && !this.player.canPlayType(src.type) && (StreamType$1.fromMime(src.type) || StreamType$1.fromUrl(src.src))) {
+            if (!src.dataset['ignore'] && src.src && !this.player.canPlayType(src.type) && (StreamType.fromMime(src.type) || StreamType.fromUrl(src.src))) {
                 this.url = src.src;
-                this.type = src.type ? StreamType$1.fromMime(src.type) : StreamType$1.fromUrl(src.src);
+                this.type = src.type ? StreamType.fromMime(src.type) : StreamType.fromUrl(src.src);
                 return true;
             }
             return false;
@@ -9636,7 +9940,7 @@
             });
 
             let lastType = this.type;
-            this.type = (StreamType$1.isSupported(type)?type:false) || StreamType$1.fromMime(type);
+            this.type = (StreamType.isSupported(type)?type:false) || StreamType.fromMime(type);
             if (!this.type) {
                 this.error(SMediaError.MEDIA_ERR_SRC_NOT_SUPPORTED);
                 return;
@@ -9657,6 +9961,8 @@
                 this.client.queryCredentials = this.queryCredentials;
             }
             if (this.remuxer) {
+                this.continuousRecording.dettachSource();
+                this.eventRecording.dettachSource();
                 this.remuxer.destroy();
                 this.remuxer = null;
             }
@@ -9664,8 +9970,17 @@
             this.remuxer.MSE.bufferDuration = this.bufferDuration_;
             this.remuxer.attachClient(this.client);
 
+            this.h265Decoder = new H265Decoder(this.canvas);
+            this.h265Decoder.attachSource(this.client);
+
+            this.continuousRecording.attachSource(this.remuxer);
+            this.eventRecording.attachSource(this.remuxer);
+
             this.client.attachTransport(this.transport);
             this.client.setSource(this.endpoint);
+            this.client.eventSource.addEventListener('videoFormat', (event)=>{
+                this.videoFormatEvent(event.detail);
+            });
 
             if (this.player.autoplay) {
                 this.start();
@@ -9674,7 +9989,8 @@
 
         set bufferDuration(duration){
             if(this.remuxer && this.remuxer.MSE) {
-                this.bufferDuration_ = duration;            this.remuxer.MSE.bufferDuration = duration;
+                this.bufferDuration_ = duration;
+                this.remuxer.MSE.bufferDuration = duration;
             }
         }
 
@@ -9700,6 +10016,22 @@
             if (inf !== undefined) {
                 if (this.infoHandler){
                     this.infoHandler(inf);
+                }
+            }
+        }
+
+        videoFormatEvent(format) {
+            if (format !== undefined) {
+                if (this.videoFormatHandler){
+                    this.videoFormatHandler(format);
+                }
+            }
+        }    
+
+        mediadata(data, prefix){
+            if (data !== undefined) {
+                if (this.dataHandler){
+                    this.dataHandler(data, prefix);
                 }
             }
         }
@@ -9734,6 +10066,9 @@
                 this.remuxer.destroy();
                 this.remuxer = null;
             }
+
+            this.continuousRecording.destroy();
+            this.eventRecording.destroy();
         }
 
     }
@@ -9776,8 +10111,22 @@
                         opts.infoHandler(inf);
                     }
                 },
+                dataHandler(data, prefix) {
+                    if(opts.dataHandler) {
+                        opts.dataHandler(data, prefix);
+                    }
+                },
+                videoFormatHandler(format) {
+                    if(opts.videoFormatHandler) {
+                        opts.videoFormatHandler(format);
+                    }
+                },
+
                 redirectNativeMediaErrors: opts.redirectNativeMediaErrors,
                 bufferDuration : opts.bufferDuration,
+                continuousFileLength: opts.continuousFileLength,
+                eventFileLength: opts.eventFileLength,
+                canvas: opts.canvas,
 
                 queryCredentials(client) {
                     return new Promise((resolve, reject) => {
@@ -9796,4 +10145,3 @@
     };
 
 }());
-//# sourceMappingURL=streamedian.min.js.map
