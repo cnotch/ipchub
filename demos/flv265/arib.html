@@ -3,18 +3,18 @@
 
 <head>
     <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
-    <title>mpegts.js demo</title>
+    <title>mpegts.js ARIB demo</title>
     <link rel="stylesheet" type="text/css" href="demo.css" />
 </head>
 
 <body>
-    
+
     <div class="mainContainer">
         <div>
             <div id="streamURL">
                 <div class="url-input">
                     <label for="sURL">Stream URL:</label>
-                    <input id="sURL" type="text" value="http://127.0.0.1:1554/streams/test/live1.flv" />
+                    <input id="sURL" type="text" value="http://127.0.0.1/api/streams/live/3273601024/mpegts?mode=1" />
                     <button onclick="switch_mds()">Switch to MediaDataSource</button>
                 </div>
                 <div class="options">
@@ -22,14 +22,20 @@
                     <label for="isLive">isLive</label>
                     <input type="checkbox" id="withCredentials" onchange="saveSettings()" />
                     <label for="withCredentials">withCredentials</label>
-                    <input type="checkbox" id="liveBufferLatencyChasing" onchange="saveSettings()" checked />
-                    <label for="liveBufferLatencyChasing">liveBufferLatencyChasing</label>
+                    <input type="checkbox" id="liveSync" onchange="saveSettings()" checked />
+                    <label for="liveSync">liveSync</label>
+                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+                    <label>aribb24.js source:</label>
+                    <input type="radio" id="radio_private_stream_1" value="private_stream_1" name="aribCaptionTransmitMode" onchange="saveSettings()" checked>
+                    <label for="radio_private_stream_1">private_stream_1</label>
+                    <input type="radio" id="radio_timed_id3" value="timed_id3" name="aribCaptionTransmitMode" onchange="saveSettings()">
+                    <label for="radio_timed_id3">ID3v2 (Timed ID3 Metadata)</label>
                 </div>
             </div>
             <div id="mediaSourceURL" class="hidden">
                 <div class="url-input">
                     <label for="msURL">MediaDataSource JsonURL:</label>
-                    <input id="msURL" type="text" value="http://127.0.0.1/flv/7182741.json" />
+                    <input id="msURL" type="text" value="http://127.0.0.1/streamfiles/mds.json" />
                     <button onclick="switch_url()">Switch to URL</button>
                 </div>
             </div>
@@ -53,16 +59,31 @@
     </div>
 
     <script src="dist/mpegts.js"></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/aribb24.js@1.10.1/dist/aribb24.js"></script>
+
     <script>
-        var checkBoxFields = ['isLive', 'withCredentials', 'liveBufferLatencyChasing'];
+        var checkBoxFields = ['isLive', 'withCredentials', 'liveSync'];
         var streamURL, mediaSourceURL;
+        var arib_caption_transmit_mode;
+
+        function parseMalformedPES(data) {
+            var PES_scrambling_control = (data[0] & 0x30) >>> 4;
+            var PTS_DTS_flags = (data[1] & 0xC0) >>> 6;
+            var PES_header_data_length = data[2];
+
+            var payload_start_index = 3 + PES_header_data_length;
+            var payload_length = data.byteLength - payload_start_index;
+
+            var payload = data.subarray(payload_start_index, payload_start_index + payload_length);
+
+            return payload;
+        }
 
         function player_load() {
-            console.log('isSupported: ' + mpegts.isSupported());
+            console.log('isSupported: ' + mpegts.getFeatureList().mseLivePlayback);
             if (mediaSourceURL.className === '') {
                 var url = document.getElementById('msURL').value;
-    
+
                 var xhr = new XMLHttpRequest();
                 xhr.open('GET', url, true);
                 xhr.onload = function (e) {
@@ -96,15 +117,109 @@
                     player.destroy();
                     player = null;
                 }
+                if (captionRenderer != null) {
+                    captionRenderer.dispose();
+                    captionRenderer = null;
+                }
+                if (superimposeRenderer != null) {
+                    superimposeRenderer.dispose();
+                    superimposeRenderer = null;
+                }
             }
             player = mpegts.createPlayer(mediaDataSource, {
                 enableWorker: true,
-                lazyLoadMaxDuration: 3 * 60,
-                seekType: 'range',
-                liveBufferLatencyChasing: document.getElementById('liveBufferLatencyChasing').checked,
+                enableWorkerForMSE: true,
+                liveSync: document.getElementById('liveSync').checked,
             });
             player.attachMediaElement(element);
             player.load();
+
+            captionRenderer = new aribb24js.CanvasRenderer({
+                data_identifer: 0x80,
+                forceStrokeColor: 'black',
+                normalFont: '"Windows TV MaruGothic", "Hiragino Maru Gothic Pro", "HGMaruGothicMPRO", "Yu Gothic Medium", sans-serif',
+                gaijiFont: '"Windows TV MaruGothic", "Hiragino Maru Gothic Pro", "HGMaruGothicMPRO", "Yu Gothic Medium", sans-serif',
+                drcsReplacement: true,
+                useStrokeText: true,
+            });
+            captionRenderer.attachMedia(element);
+            captionRenderer.show();
+
+            superimposeRenderer = new aribb24js.CanvasRenderer({
+                data_identifer: 0x81,
+                forceStrokeColor: 'black',
+                normalFont: '"Windows TV MaruGothic", "Hiragino Maru Gothic Pro", "HGMaruGothicMPRO", "Yu Gothic Medium", sans-serif',
+                gaijiFont: '"Windows TV MaruGothic", "Hiragino Maru Gothic Pro", "HGMaruGothicMPRO", "Yu Gothic Medium", sans-serif',
+                drcsReplacement: true,
+                useStrokeText: true,
+            });
+            superimposeRenderer.attachMedia(element);
+            superimposeRenderer.show();
+
+            player.on(mpegts.Events.PES_PRIVATE_DATA_ARRIVED, function(data) {
+                if (arib_caption_transmit_mode !== 'private_stream_1') {
+                    return;
+                }
+                if (data.stream_id === 0xBD && data.data[0] === 0x80) {  // private_stream_1, caption
+                    captionRenderer.pushData(data.pid, data.data, data.pts / 1000);
+                } else if (data.stream_id === 0xBF) {  // private_stream_2, superimpose
+                    var payload = data.data;
+                    if (payload[0] !== 0x81) {
+                        payload = parseMalformedPES(data.data);
+                    }
+                    if (payload[0] !== 0x81) {
+                        return;
+                    }
+                    superimposeRenderer.pushData(data.pid, payload, data.nearest_pts / 1000);
+                }
+            });
+
+            /*
+            var process = [];
+            player.on(mpegts.Events.SMPTE2038_METADATA_ARRIVED, function(data) {
+                const pts = data.pts;
+
+                for (const ancillary of data.ancillaries) {
+                    const { user_data } = ancillary;
+
+                    // header 4 byte
+                    const end_packet_flag = (user_data[2] & 0x20) !== 0;
+                    const start_packet_flag = (user_data[2] & 0x40) !== 0;
+
+                    // timing 12 byte
+
+                    if (start_packet_flag && end_packet_flag) {
+                        const offset = 16;
+                        const packet = user_data.slice(offset, offset + 188);
+                        const header = 4;
+                        const adaptation_field_length = packet[header];
+                        const pes = packet.slice(header + 1 + adaptation_field_length);
+                        const pes_header = 6;
+                        const pes_offset = pes_header + 3 + pes[pes_header + 2];
+                        const data = pes.slice(pes_offset);
+                        captionRenderer.pushData(data.pid, data, pts / 1000);
+                        console.log(pts, Array.from(data).map((e) => e.toString(16)))
+                    }
+                }
+            });
+            */
+
+            player.on(mpegts.Events.TIMED_ID3_METADATA_ARRIVED, function(data) {
+                if (arib_caption_transmit_mode !== 'timed_id3') {
+                    return;
+                }
+                captionRenderer.pushID3v2Data(data.pts / 1000, data.data);
+            });
+
+            player.on(mpegts.Events.ASYNCHRONOUS_KLV_METADATA_ARRIVED, function(data) {
+                console.log('sync', data);
+            })
+
+            player.on(mpegts.Events.PES_PRIVATE_DATA_DESCRIPTOR, function(data) {
+                // var str = JSON.stringify(data);
+                // logcatbox.value = logcatbox.value + str + '\n';
+                // logcatbox.scrollTop = logcatbox.scrollHeight;
+            });
         }
 
         function player_start() {
@@ -158,6 +273,14 @@
         }
 
         function saveSettings() {
+            if (document.getElementById('radio_private_stream_1').checked) {
+                arib_caption_transmit_mode = 'private_stream_1';
+                ls_set('aribCaptionTransmitMode', 'private_stream_1');
+            } else if (document.getElementById('radio_timed_id3').checked) {
+                arib_caption_transmit_mode = 'timed_id3';
+                ls_set('aribCaptionTransmitMode', 'timed_id3');
+            }
+
             if (mediaSourceURL.className === '') {
                 ls_set('inputMode', 'MediaDataSource');
             } else {
@@ -178,6 +301,12 @@
         }
 
         function loadSettings() {
+            arib_caption_transmit_mode = ls_get('aribCaptionTransmitMode', 'private_stream_1');
+            if (arib_caption_transmit_mode == "timed_id3") {
+                document.getElementById('radio_private_stream_1').checked = false;
+                document.getElementById('radio_timed_id3').checked = true;
+            }
+
             var i;
             for (i = 0; i < checkBoxFields.length; i++) {
                 var field = checkBoxFields[i];
@@ -231,7 +360,7 @@
             player_load();
         });
     </script>
-    
+
 </body>
 
 </html>
