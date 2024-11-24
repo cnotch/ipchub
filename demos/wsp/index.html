@@ -235,7 +235,7 @@ To activate key, please, use the activation application that is placed:
         }
 
         var playerOptions = {
-            socket: "ws://localhost:8088/ws/",
+            socket: "ws://localhost:8088/streams/",
             redirectNativeMediaErrors : true,
             bufferDuration: 30,
             errorHandler: errHandler,
@@ -354,7 +354,7 @@ To activate key, please, use the activation application that is placed:
             html5Player.src = newSource;
             // 修改原例子 begn =======>
             // 我们直接使用ws来决定播放的路径，
-            // 比如：ws://192.168.1.100:1554/ws/test/live1
+            // 比如：ws://192.168.1.100:1554/streams/test/live1
             // 表示要播放服务器上路径为/test/live1
             // 如果播放失败，可能是以下情况(1和2发生在升级websocket阶段，3发生在rtsp通讯阶段)
             //  1. 如果服务器rtsp的验证模式不为NONE，则需要登录后获取到token才能访问；像这样ws://.../test/live1?token=...
@@ -363,12 +363,13 @@ To activate key, please, use the activation application that is placed:
             //
             // 如果不是使用例子，我们可以这样
             //  html5Player.src = "rtsp://placehold"
-            //  playerOptions.socket ="ws://localhost:1554/ws/test/live1"
+            //  playerOptions.socket ="ws://localhost:1554/streams/test/live1"
             // 知道ws主机后，实际上只需要提供流媒体path即可，这也更好
             // 
             let rtspUrl = new URL(newSource)
             rtspUrl.protocol = "ws"
-            rtspUrl.pathname = "/ws"+rtspUrl.pathname
+            rtspUrl.pathname = "/streams"+rtspUrl.pathname
+
             playerOptions.socket = rtspUrl.href
             // <========= end
 

@@ -215,7 +215,7 @@ http://.../api/v1/streams/rtsp/room/door?token=your_access_token
 + http-flv
 http://.../streams/room/door.flv?token=your_access_token
 + websocket-flv
-ws://.../ws/room/door.flv?token=your_access_token
+ws://.../streams/room/door.flv?token=your_access_token
 + http-flv
 http://.../steams/room/door.m3u8?token=your_access_token
 

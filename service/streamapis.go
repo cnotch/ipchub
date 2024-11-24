@@ -7,6 +7,7 @@ package service
 import (
 	"net/http"
 	"path"
+	"strings"
 
 	"github.com/cnotch/ipchub/config"
 	"github.com/cnotch/ipchub/network/websocket"
@@ -20,7 +21,7 @@ import (
 
 // 初始化流式访问
 func (s *Service) initHTTPStreams(mux *http.ServeMux) {
-	mux.Handle("/ws/", apirouter.WrapHandler(http.HandlerFunc(s.onWebSocketRequest), apirouter.PreInterceptor(s.streamInterceptor)))
+	// mux.Handle("/ws/", apirouter.WrapHandler(http.HandlerFunc(s.onWebSocketRequest), apirouter.PreInterceptor(s.streamInterceptor)))
 	mux.Handle("/streams/", apirouter.WrapHandler(http.HandlerFunc(s.onStreamsRequest), apirouter.PreInterceptor(s.streamInterceptor)))
 }
 
@@ -54,8 +55,16 @@ func (s *Service) onWebSocketRequest(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// streams 请求处理(flv,mu38,ts)
+// streams 请求处理(websocket connect,flv,mu38,ts)
 func (s *Service) onStreamsRequest(w http.ResponseWriter, r *http.Request) {
+	// 检测 websocket 请求
+	if r.Method == "GET" &&
+		strings.ToLower(r.Header.Get("Connection")) == "upgrade" &&
+		strings.ToLower(r.Header.Get("Upgrade")) == "websocket" {
+		s.onWebSocketRequest(w, r)
+		return
+	}
+
 	// 获取文件后缀和流路径
 	streamPath, ext := extractStreamPathAndExt(r.URL.Path)
 

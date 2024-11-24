@@ -60,7 +60,7 @@ rtsp://localhost:1554/hr/door/video1 请求在服务器内自动变成去拉取r
 ### 3.3 使用websocket-rtsp
 打开demo地址：http://localhost:1554/demos/rtsp
 
-输入：ws://localhost:1554/ws/group/door 即可访问。
+输入：ws://localhost:1554/streams/group/door 即可访问。
 
 ### 3.4 使用http-flv访问
 打开demo地址：http://localhost:1554/demos/flv
@@ -72,19 +72,19 @@ rtsp://localhost:1554/hr/door/video1 请求在服务器内自动变成去拉取r
 ### 3.5 使用 websocket-flv访问
 打开demo地址：http://localhost:1554/demos/flv
 
-输入：ws://locaolhost:1554/ws/group/door.flv 即可访问。
+输入：ws://locaolhost:1554/streams/group/door.flv 即可访问。
 
 ### 3.6 使用 http-hls访问
 由于 iOS的Safari不支持上述任何http访问模式，请使用 http-hls
 
-在浏览器输入: http://localhost:1554/streams/group/door.m3m8 即可访问。
+在浏览器输入: http://localhost:1554/streams/group/door.m3u8 即可访问。
 
 **注意:** 由于http-hls的段文件默认被放在内存中，占用大量的内存；如系统内存不足，请配置存储路径。
 
 ### 3.7 访问 h265 flv
 打开demo地址：http://localhost:1554/demos/flv265
 
-输入：http://locaolhost:1554/streams/group/door.flv 即可访问。
+输入：http://locaolhost:1554/streams/group/door.flv 或 ws://locaolhost:1554/streams/group/door.flv即可访问。
 
 ## 4. 需要授权的情况
 除rtsp外，其他使用token进行访问。
