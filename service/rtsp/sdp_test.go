@@ -100,6 +100,24 @@ a=rtpmap:97 MPEG4-GENERIC/44100/2
 a=fmtp:97 profile-level-id=1;mode=AAC-hbr;sizelength=13;indexlength=3;indexdeltalength=3; config=121056E500
 a=control:streamid=1
 `
+const sdpTplink500 = `v=0
+o=- 14665860 31787219 1 IN IP4 192.168.1.60
+s=Session streamed by "TP-LINK RTSP Server"
+t=0 0
+m=video 0 RTP/AVP 96
+c=IN IP4 0.0.0.0
+b=AS:4096
+a=range:npt=0-
+a=control:track1
+a=rtpmap:96 H265/90000
+a=fmtp:96 profile-space=0;profile-id=12;tier-flag=0;level-id=0;interop-constraints=600000000000;sprop-vps=AAAAAUABDAH//wFgAAADAAADAAADAAADAJasCQ==;sprop-sps=AAAAAUIBAQFgAAADAAADAAADAAADAJagAWggBln3ja5JMmuWMAgAAAMACAAAAwB4QA==;sprop-pps=AAAAAUQB4HawJkA=
+m=audio 0 RTP/AVP 8
+a=rtpmap:8 PCMA/8000
+a=control:track2
+m=application/TP-LINK 0 RTP/AVP smart/1/90000
+a=rtpmap:95 TP-LINK/90000
+a=control:track3
+`
 
 func Benchmark_ThirdSdpParse(b *testing.B) {
 	b.ResetTimer()

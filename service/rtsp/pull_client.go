@@ -464,6 +464,14 @@ func (c *PullClient) receiveResponse() (resp *Response, err error) {
 	return
 }
 
+func trimSessionString(s string) string {
+	idx := strings.Index(s, ";")
+	if idx > 0 {
+		return strings.TrimSpace(s[:idx])
+	}
+	return s
+}
+
 func (c *PullClient) requestWithResponse(r *Request) (*Response, error) {
 	err := c.request(r)
 	if err != nil {
@@ -477,6 +485,10 @@ func (c *PullClient) requestWithResponse(r *Request) (*Response, error) {
 
 	// 保存 session
 	c.rsession = resp.Header.Get(FieldSession)
+	if len(c.rsession) > 0 {
+		// Fixed: TP-Link RTSP session fields(5EA2A41D;timeout=15)
+		c.rsession = trimSessionString(c.rsession)
+	}
 
 	// 如果需要安全信息，增加安全信息并再次请求
 	if resp.StatusCode == StatusUnauthorized {
