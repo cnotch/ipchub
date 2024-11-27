@@ -13,6 +13,7 @@ import (
 	"github.com/cnotch/ipchub/av/codec/aac"
 	"github.com/cnotch/ipchub/av/codec/h264"
 	"github.com/cnotch/ipchub/av/codec/hevc"
+	"github.com/cnotch/ipchub/utils"
 	"github.com/cnotch/ipchub/utils/scan"
 	"github.com/pixelbender/go-sdp/sdp"
 )
@@ -147,13 +148,13 @@ func parseH264SpsPps(s string, video *codec.VideoMeta) {
 	sps, err := base64.StdEncoding.DecodeString(spsStr)
 	if err == nil {
 		// video.SetParameterSet(h264.ParameterSetSps, sps)
-		video.Sps = sps
+		video.Sps = utils.RemoveNaluSeparator(sps)
 	}
 
 	pps, err := base64.StdEncoding.DecodeString(ppsStr)
 	if err == nil {
 		// video.SetParameterSet(h264.ParameterSetPps, pps)
-		video.Pps = pps
+		video.Pps = utils.RemoveNaluSeparator(pps)
 	}
 
 	_ = h264.MetadataIsReady(video)
@@ -167,22 +168,20 @@ func parseH265VpsSpsPps(s string, video *codec.VideoMeta) {
 		advance, token, continueScan = scan.Semicolon.Scan(advance)
 		name, value, ok := scan.EqualPair.Scan(token)
 		if ok {
-			var ps *[]byte
+			var ps []byte
 			var err error
+			if ps, err = base64.StdEncoding.DecodeString(value); err != nil {
+				return
+			}
+			ps = utils.RemoveNaluSeparator(ps)
+
 			switch name {
 			case "sprop-vps":
-				ps = &video.Vps
+				video.Vps = ps
 			case "sprop-sps":
-				ps = &video.Sps
+				video.Sps = ps
 			case "sprop-pps":
-				ps = &video.Pps
-			}
-			if ps == nil {
-				continue
-			}
-
-			if *ps, err = base64.StdEncoding.DecodeString(value); err != nil {
-				return
+				video.Pps = ps
 			}
 		}
 	}

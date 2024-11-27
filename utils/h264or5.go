@@ -4,9 +4,12 @@
 
 package utils
 
+import "bytes"
+
 // RemoveH264or5EmulationBytes A general routine for making a copy of a (H.264 or H.265) NAL unit, removing 'emulation' bytes from the copy
 // copy from live555
 func RemoveH264or5EmulationBytes(from []byte) []byte {
+	from = RemoveNaluSeparator(from)
 	to := make([]byte, len(from))
 	toMaxSize := len(to)
 	fromSize := len(from)
@@ -34,4 +37,15 @@ func RemoveH264or5EmulationBytes(from []byte) []byte {
 
 	return to[:toSize]
 	// return bytes.Replace(from, []byte{0, 0, 3}, []byte{0, 0}, -1)
+}
+
+// 移除 NALU 分隔符 0x00000001 或 0x000001
+func RemoveNaluSeparator(nalu []byte) []byte {
+	if bytes.HasPrefix(nalu, []byte{0x0, 0x0, 0x0, 0x1}) {
+		return nalu[4:]
+	}
+	if bytes.HasPrefix(nalu, []byte{0x0, 0x0, 0x1}) {
+		return nalu[3:]
+	}
+	return nalu
 }

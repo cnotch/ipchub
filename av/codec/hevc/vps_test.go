@@ -24,6 +24,11 @@ func TestH265RawVPS_DecodeString(t *testing.T) {
 			"QAEMAf//AWAAAAMAkAAAAwAAAwBdlZgJ",
 			false,
 		},
+		{
+			"tpl500-265",
+			"AAAAAUABDAH//wFgAAADAAADAAADAAADAJasCQ==",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

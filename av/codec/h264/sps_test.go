@@ -41,6 +41,14 @@ func TestRawSPS_Parse(t *testing.T) {
 			float64(60000) / float64(1001*2),
 			false,
 		},
+		{
+			"tpl500",
+			"AAAAAWdkAB6s0gLASaEAAAMAAQAAAwAehA==",
+			704,
+			576,
+			15,
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
