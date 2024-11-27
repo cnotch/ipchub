@@ -506,11 +506,27 @@ type H265RawSPS struct {
 
 // Width 视频宽度（像素）
 func (sps *H265RawSPS) Width() int {
+	if sps.Conformance_window_flag == 1 {
+		sub_width_c := 1
+		if (sps.Chroma_format_idc == 1 || sps.Chroma_format_idc == 2) &&
+			sps.Separate_colour_plane_flag == 0 {
+			sub_width_c = 2
+		}
+		return int(sps.Pic_width_in_luma_samples) - sub_width_c*(int(sps.Conf_win_right_offset)+int(sps.Conf_win_left_offset))
+	}
 	return int(sps.Pic_width_in_luma_samples)
 }
 
 // Height 视频高度（像素）
 func (sps *H265RawSPS) Height() int {
+	if sps.Conformance_window_flag == 1 {
+		sub_height_c := 1
+		if sps.Chroma_format_idc == 1 &&
+			sps.Separate_colour_plane_flag == 0 {
+			sub_height_c = 2
+		}
+		return int(sps.Pic_height_in_luma_samples) - sub_height_c*(int(sps.Conf_win_bottom_offset)+int(sps.Conf_win_top_offset))
+	}
 	return int(sps.Pic_height_in_luma_samples)
 }
 
