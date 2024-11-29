@@ -12,11 +12,11 @@ import (
 )
 
 type aacDepacketizer struct {
+	depacketizer
 	meta        *codec.AudioMeta
 	w           codec.FrameWriter
 	sizeLength  int
 	indexLength int
-	syncClock SyncClock
 }
 
 // NewAacDepacketizer 实例化 AAC 解包器
@@ -29,15 +29,6 @@ func NewAacDepacketizer(meta *codec.AudioMeta, w codec.FrameWriter) Depacketizer
 	}
 	aacdp.syncClock.RTPTimeUnit = float64(time.Second) / float64(meta.SampleRate)
 	return aacdp
-}
-
-func (aacdp *aacDepacketizer) Control(basePts *int64, p *Packet) error {
-	if ok := aacdp.syncClock.Decode(p.Data); ok {
-		if *basePts == 0 {
-			*basePts = aacdp.syncClock.NTPTime
-		}
-	}
-	return nil
 }
 
 //  以下是当 sizelength=13;indexlength=3;indexdeltalength=3 时
@@ -135,8 +126,4 @@ func (aacdp *aacDepacketizer) depacketizeFor1ByteAUHeader(basePts int64, packet 
 	}
 
 	return
-}
-
-func (aacdp *aacDepacketizer) rtp2ntp(timestamp uint32) int64 {
-	return aacdp.syncClock.Rtp2Ntp(timestamp)
 }

@@ -16,7 +16,7 @@ import (
 
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 const (
-	ptsDelay = int64(time.Second)
+	ptsDelay = int64(time.Second)/2
 )
 
 // Depacketizer 解包器
@@ -27,8 +27,35 @@ type Depacketizer interface {
 
 type emptyDepacketizer struct{}
 
-func (emptyDepacketizer) Control(basePts *int64, p *Packet) error    { return nil }
-func (emptyDepacketizer) Depacketize(basePts int64, p *Packet) error { return nil }
+func (emptyDepacketizer) Control(basePts *int64, p *Packet) error     { return nil }
+func (emptyDepacketizer) Depacketize(basePts int64, p *Packet) error  { return nil }
+
+type depacketizer struct {
+	syncClock SyncClock
+}
+
+// func (dp *depacketizer) ForcInitSyncClock(basePts *int64, p *Packet) {
+// 	if dp.syncClock.NTPTime == 0 {
+// 		dp.syncClock.RTPTime = p.Timestamp
+// 		dp.syncClock.NTPTime = time.Now().Local().UnixNano()
+// 		if *basePts == 0 {
+// 			*basePts = dp.syncClock.NTPTime
+// 		}
+// 	}
+// }
+
+func (dp *depacketizer) Control(basePts *int64, p *Packet) error {
+	if ok := dp.syncClock.Decode(p.Data); ok {
+		if *basePts == 0 {
+			*basePts = dp.syncClock.NTPTime
+		}
+	}
+	return nil
+}
+
+func (dp *depacketizer) rtp2ntp(timestamp uint32) int64 {
+	return dp.syncClock.Rtp2Ntp(timestamp)
+}
 
 // Demuxer 帧转换器
 type Demuxer struct {

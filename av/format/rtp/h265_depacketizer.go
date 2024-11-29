@@ -12,6 +12,7 @@ import (
 )
 
 type h265Depacketizer struct {
+	depacketizer
 	fragments []*Packet // 分片包
 	meta      *codec.VideoMeta
 	metaReady bool
@@ -19,7 +20,6 @@ type h265Depacketizer struct {
 	dtsStep   float64
 	startOn   time.Time
 	w         codec.FrameWriter
-	syncClock SyncClock
 }
 
 // NewH265Depacketizer 实例化 H265 帧提取器
@@ -31,15 +31,6 @@ func NewH265Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketize
 	}
 	h265dp.syncClock.RTPTimeUnit = float64(time.Second) / float64(meta.ClockRate)
 	return h265dp
-}
-
-func (h265dp *h265Depacketizer) Control(basePts *int64, p *Packet) error {
-	if ok := h265dp.syncClock.Decode(p.Data); ok {
-		if *basePts == 0 {
-			*basePts = h265dp.syncClock.NTPTime
-		}
-	}
-	return nil
 }
 
 /*
@@ -175,10 +166,6 @@ func (h265dp *h265Depacketizer) depacketizeFu(basePts int64, packet *Packet) (er
 	}
 
 	return
-}
-
-func (h265dp *h265Depacketizer) rtp2ntp(timestamp uint32) int64 {
-	return h265dp.syncClock.Rtp2Ntp(timestamp)
 }
 
 func (h265dp *h265Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, frame *codec.Frame) error {

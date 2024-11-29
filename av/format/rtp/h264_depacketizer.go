@@ -13,6 +13,7 @@ import (
 )
 
 type h264Depacketizer struct {
+	depacketizer
 	fragments []*Packet // 分片包
 	meta      *codec.VideoMeta
 	metaReady bool
@@ -20,7 +21,6 @@ type h264Depacketizer struct {
 	dtsStep   float64
 	startOn   time.Time
 	w         codec.FrameWriter
-	syncClock SyncClock
 }
 
 // NewH264Depacketizer 实例化 H264 帧提取器
@@ -32,15 +32,6 @@ func NewH264Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketize
 	}
 	h264dp.syncClock.RTPTimeUnit = float64(time.Second) / float64(meta.ClockRate)
 	return h264dp
-}
-
-func (h264dp *h264Depacketizer) Control(basePts *int64, p *Packet) error {
-	if ok := h264dp.syncClock.Decode(p.Data); ok {
-		if *basePts == 0 {
-			*basePts = h264dp.syncClock.NTPTime
-		}
-	}
-	return nil
 }
 
 func (h264dp *h264Depacketizer) Depacketize(basePts int64, packet *Packet) (err error) {
@@ -124,7 +115,7 @@ func (h264dp *h264Depacketizer) depacketizeStapa(basePts int64, packet *Packet) 
 		}
 		copy(frame.Payload, payload[off:])
 		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
-		if err = h264dp.writeFrame(basePts, packet.Timestamp,frame); err != nil {
+		if err = h264dp.writeFrame(basePts, packet.Timestamp, frame); err != nil {
 			return
 		}
 
@@ -191,14 +182,10 @@ func (h264dp *h264Depacketizer) depacketizeFuA(basePts int64, packet *Packet) (e
 		// 清空分片缓存
 		h264dp.fragments = h264dp.fragments[:0]
 
-		err = h264dp.writeFrame(basePts, packet.Timestamp,frame)
+		err = h264dp.writeFrame(basePts, packet.Timestamp, frame)
 	}
 
 	return
-}
-
-func (h264dp *h264Depacketizer) rtp2ntp(timestamp uint32) int64 {
-	return h264dp.syncClock.Rtp2Ntp(timestamp)
 }
 
 func (h264dp *h264Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, frame *codec.Frame) error {
@@ -228,7 +215,7 @@ func (h264dp *h264Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, f
 		h264dp.metaReady = true
 	}
 
-	frame.Pts = h264dp.rtp2ntp(rtpTimestamp) - basePts+ptsDelay
+	frame.Pts = h264dp.rtp2ntp(rtpTimestamp) - basePts + ptsDelay
 	if h264dp.dtsStep > 0 {
 		frame.Dts = int64(h264dp.nextDts)
 		h264dp.nextDts += h264dp.dtsStep
