@@ -5,8 +5,6 @@
 package rtp
 
 import (
-	"time"
-
 	"github.com/cnotch/ipchub/av/codec"
 	"github.com/cnotch/ipchub/av/codec/aac"
 )
@@ -27,36 +25,34 @@ func NewAacDepacketizer(meta *codec.AudioMeta, w codec.FrameWriter) Depacketizer
 		sizeLength:  13,
 		indexLength: 3,
 	}
-	aacdp.syncClock.RTPTimeUnit = float64(time.Second) / float64(meta.SampleRate)
+	aacdp.syncClock.Init(meta.SampleRate)
 	return aacdp
 }
 
-//  以下是当 sizelength=13;indexlength=3;indexdeltalength=3 时
-//  Au-header = 13+3 bits(2byte) 的示意图
-// 	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-//  |       AU-headers-length     |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-//  |       AU-header(1)          |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-//  |       AU-header(2)          |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-//  |       ...                   |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-//  |       AU-header(n)          |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
-//  |       pading bits           |
-//  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 以下是当 sizelength=13;indexlength=3;indexdeltalength=3 时
+//	 Au-header = 13+3 bits(2byte) 的示意图
+//		0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 |       AU-headers-length     |
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 |       AU-header(1)          |
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 |       AU-header(2)          |
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 |       ...                   |
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 |       AU-header(n)          |
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//	 |       pading bits           |
+//	 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-|
+//
 // 当 sizelength=6;indexlength=2;indexdeltalength=2 时
 // 单帧封装时，rtp payload的长度 = AU-header-lengths(两个字节) + AU-header(6+2) + AU的长度
-func (aacdp *aacDepacketizer) Depacketize(basePts int64, packet *Packet) (err error) {
-	if aacdp.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
-		return
-	}
-	return aacdp.depacketizeFor2ByteAUHeader(basePts, packet)
+func (aacdp *aacDepacketizer) Depacketize(packet *Packet) (err error) {
+	return aacdp.depacketizeFor2ByteAUHeader(packet)
 }
 
-func (aacdp *aacDepacketizer) depacketizeFor2ByteAUHeader(basePts int64, packet *Packet) (err error) {
+func (aacdp *aacDepacketizer) depacketizeFor2ByteAUHeader(packet *Packet) (err error) {
 	payload := packet.Payload()
 
 	// AU-headers-length 2bytes
@@ -72,11 +68,11 @@ func (aacdp *aacDepacketizer) depacketizeFor2ByteAUHeader(basePts int64, packet 
 	for i := 0; i < int(auHeadersCount); i++ {
 		auHeader := uint16(0) | (uint16(auHeaders[0]) << 8) | uint16(auHeaders[1])
 		frameSize := auHeader >> aacdp.indexLength
-		pts := aacdp.rtp2ntp(frameTimeStamp) - basePts + ptsDelay
+		pts := aacdp.rtp2ntp(frameTimeStamp) + ptsDelay
 		frame := &codec.Frame{
 			MediaType: codec.MediaTypeAudio,
-			Dts:    pts,
-			Pts:    pts,
+			Dts:       pts,
+			Pts:       pts,
 			Payload:   framesPayload[:frameSize],
 		}
 		if err = aacdp.w.WriteFrame(frame); err != nil {
@@ -92,7 +88,7 @@ func (aacdp *aacDepacketizer) depacketizeFor2ByteAUHeader(basePts int64, packet 
 	return
 }
 
-func (aacdp *aacDepacketizer) depacketizeFor1ByteAUHeader(basePts int64, packet *Packet) (err error) {
+func (aacdp *aacDepacketizer) depacketizeFor1ByteAUHeader(packet *Packet) (err error) {
 	payload := packet.Payload()
 
 	// AU-headers-length 2bytes
@@ -108,11 +104,11 @@ func (aacdp *aacDepacketizer) depacketizeFor1ByteAUHeader(basePts int64, packet 
 	for i := 0; i < int(auHeadersCount); i++ {
 		auHeader := auHeaders[0]
 		frameSize := auHeader >> aacdp.indexLength
-		pts := aacdp.rtp2ntp(frameTimeStamp) - basePts + ptsDelay
+		pts := aacdp.rtp2ntp(frameTimeStamp) + ptsDelay
 		frame := &codec.Frame{
 			MediaType: codec.MediaTypeAudio,
-			Dts:    pts,
-			Pts:    pts,
+			Dts:       pts,
+			Pts:       pts,
 			Payload:   framesPayload[:frameSize],
 		}
 		if err = aacdp.w.WriteFrame(frame); err != nil {

@@ -18,7 +18,6 @@ type h265Depacketizer struct {
 	metaReady bool
 	nextDts   float64
 	dtsStep   float64
-	startOn   time.Time
 	w         codec.FrameWriter
 }
 
@@ -29,7 +28,7 @@ func NewH265Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketize
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
 	}
-	h265dp.syncClock.RTPTimeUnit = float64(time.Second) / float64(meta.ClockRate)
+	h265dp.syncClock.Init(meta.ClockRate)
 	return h265dp
 }
 
@@ -57,11 +56,7 @@ func NewH265Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketize
  *       End fragment (E): 1 bit
  *       FuType: 6 bits
  */
-func (h265dp *h265Depacketizer) Depacketize(basePts int64, packet *Packet) (err error) {
-	if h265dp.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
-		return
-	}
-
+func (h265dp *h265Depacketizer) Depacketize(packet *Packet) (err error) {
 	payload := packet.Payload()
 	if len(payload) < 3 {
 		return
@@ -71,20 +66,20 @@ func (h265dp *h265Depacketizer) Depacketize(basePts int64, packet *Packet) (err 
 
 	switch naluType {
 	case hevc.NalStapInRtp: // 在RTP中的聚合（AP）
-		return h265dp.depacketizeStap(basePts, packet)
+		return h265dp.depacketizeStap(packet)
 	case hevc.NalFuInRtp: // 在RTP中的扩展,分片(FU)
-		return h265dp.depacketizeFu(basePts, packet)
+		return h265dp.depacketizeFu(packet)
 	default:
 		frame := &codec.Frame{
 			MediaType: codec.MediaTypeVideo,
 			Payload:   payload,
 		}
-		err = h265dp.writeFrame(basePts, packet.Timestamp, frame)
+		err = h265dp.writeFrame(packet.Timestamp, frame)
 		return
 	}
 }
 
-func (h265dp *h265Depacketizer) depacketizeStap(basePts int64, packet *Packet) (err error) {
+func (h265dp *h265Depacketizer) depacketizeStap(packet *Packet) (err error) {
 	payload := packet.Payload()
 	off := 2 // 跳过 STAP NAL HDR
 
@@ -102,7 +97,7 @@ func (h265dp *h265Depacketizer) depacketizeStap(basePts int64, packet *Packet) (
 			Payload:   make([]byte, nalSize),
 		}
 		copy(frame.Payload, payload[off:])
-		if err = h265dp.writeFrame(basePts, packet.Timestamp, frame); err != nil {
+		if err = h265dp.writeFrame(packet.Timestamp, frame); err != nil {
 			return
 		}
 		off += int(nalSize)
@@ -113,7 +108,7 @@ func (h265dp *h265Depacketizer) depacketizeStap(basePts int64, packet *Packet) (
 	return
 }
 
-func (h265dp *h265Depacketizer) depacketizeFu(basePts int64, packet *Packet) (err error) {
+func (h265dp *h265Depacketizer) depacketizeFu(packet *Packet) (err error) {
 	payload := packet.Payload()
 	rawDataOffset := 3 // 原始数据的偏移 = FU indicator + header
 
@@ -162,13 +157,13 @@ func (h265dp *h265Depacketizer) depacketizeFu(basePts int64, packet *Packet) (er
 		// 清空分片缓存
 		h265dp.fragments = h265dp.fragments[:0]
 
-		err = h265dp.writeFrame(basePts, packet.Timestamp, frame)
+		err = h265dp.writeFrame(packet.Timestamp, frame)
 	}
 
 	return
 }
 
-func (h265dp *h265Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, frame *codec.Frame) error {
+func (h265dp *h265Depacketizer) writeFrame(rtpTimestamp uint32, frame *codec.Frame) error {
 	nalType := (frame.Payload[0] >> 1) & 0x3f
 	switch nalType {
 	case hevc.NalVps:
@@ -191,18 +186,16 @@ func (h265dp *h265Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, f
 		}
 		if h265dp.meta.FixedFrameRate {
 			h265dp.dtsStep = float64(time.Second) / h265dp.meta.FrameRate
-		} else {
-			h265dp.startOn = time.Now()
 		}
 		h265dp.metaReady = true
 	}
 
-	frame.Pts = h265dp.rtp2ntp(rtpTimestamp) - basePts + ptsDelay
+	frame.Pts = h265dp.rtp2ntp(rtpTimestamp) + ptsDelay
 	if h265dp.dtsStep > 0 {
 		frame.Dts = int64(h265dp.nextDts)
 		h265dp.nextDts += h265dp.dtsStep
 	} else {
-		frame.Dts = int64(time.Now().Sub(h265dp.startOn))
+		frame.Dts = h265dp.syncClock.RelativeNtpNow()
 	}
 	return h265dp.w.WriteFrame(frame)
 }

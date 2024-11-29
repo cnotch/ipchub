@@ -22,6 +22,15 @@ type SyncClock struct {
 	// 与RTP数据包中的RTP时间戳具有相同的单位和随机初始值。
 	RTPTime     uint32
 	RTPTimeUnit float64 // RTP时间单位，每个RTP时间的纳秒数
+
+	initOn time.Time // 初始化时间
+}
+
+// Init 初始化同步时钟
+func (sc *SyncClock) Init(clockRate int) {
+	sc.initOn = time.Now()
+	sc.NTPTime = sc.initOn.UnixNano()
+	sc.RTPTimeUnit = float64(time.Second) / float64(clockRate)
 }
 
 // LocalTime 本地时间
@@ -41,8 +50,19 @@ func (sc *SyncClock) Decode(data []byte) (ok bool) {
 	return
 }
 
-// Rtp2Ntp .
-func (sc *SyncClock) Rtp2Ntp(rtptime uint32) int64 {
+// GetRelativeNtp .
+func (sc *SyncClock) RelativeNtpNow() int64 {
+	return int64(time.Now().Sub(sc.initOn))
+}
+
+// RelativeNtp .
+func (sc *SyncClock) RelativeNtp(rtptime uint32) int64 {
+	diff := int64(rtptime) - int64(sc.RTPTime)
+	return int64(float64(diff) * sc.RTPTimeUnit)
+}
+
+// AbsoluteNtp .
+func (sc *SyncClock) AbsoluteNtp(rtptime uint32) int64 {
 	diff := int64(rtptime) - int64(sc.RTPTime)
 	return sc.NTPTime + int64(float64(diff)*sc.RTPTimeUnit)
 }

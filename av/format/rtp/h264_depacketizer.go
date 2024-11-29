@@ -19,7 +19,6 @@ type h264Depacketizer struct {
 	metaReady bool
 	nextDts   float64
 	dtsStep   float64
-	startOn   time.Time
 	w         codec.FrameWriter
 }
 
@@ -30,15 +29,11 @@ func NewH264Depacketizer(meta *codec.VideoMeta, w codec.FrameWriter) Depacketize
 		fragments: make([]*Packet, 0, 16),
 		w:         w,
 	}
-	h264dp.syncClock.RTPTimeUnit = float64(time.Second) / float64(meta.ClockRate)
+	h264dp.syncClock.Init(meta.ClockRate)
 	return h264dp
 }
 
-func (h264dp *h264Depacketizer) Depacketize(basePts int64, packet *Packet) (err error) {
-	if h264dp.syncClock.NTPTime == 0 { // 未收到同步时钟信息，忽略任意包
-		return
-	}
-
+func (h264dp *h264Depacketizer) Depacketize(packet *Packet) (err error) {
 	payload := packet.Payload()
 	if len(payload) < 3 {
 		return
@@ -69,18 +64,18 @@ func (h264dp *h264Depacketizer) Depacketize(basePts int64, packet *Packet) (err 
 			MediaType: codec.MediaTypeVideo,
 			Payload:   payload,
 		}
-		err = h264dp.writeFrame(basePts, packet.Timestamp, frame)
+		err = h264dp.writeFrame(packet.Timestamp, frame)
 	case naluType == h264.NalStapaInRtp:
-		err = h264dp.depacketizeStapa(basePts, packet)
+		err = h264dp.depacketizeStapa(packet)
 	case naluType == h264.NalFuAInRtp:
-		err = h264dp.depacketizeFuA(basePts, packet)
+		err = h264dp.depacketizeFuA(packet)
 	default:
 		err = fmt.Errorf("nalu type %d is currently not handled", naluType)
 	}
 	return
 }
 
-func (h264dp *h264Depacketizer) depacketizeStapa(basePts int64, packet *Packet) (err error) {
+func (h264dp *h264Depacketizer) depacketizeStapa(packet *Packet) (err error) {
 	payload := packet.Payload()
 	header := payload[0]
 
@@ -115,7 +110,7 @@ func (h264dp *h264Depacketizer) depacketizeStapa(basePts int64, packet *Packet) 
 		}
 		copy(frame.Payload, payload[off:])
 		frame.Payload[0] = 0 | (header & 0x60) | (frame.Payload[0] & 0x1F)
-		if err = h264dp.writeFrame(basePts, packet.Timestamp, frame); err != nil {
+		if err = h264dp.writeFrame(packet.Timestamp, frame); err != nil {
 			return
 		}
 
@@ -127,7 +122,7 @@ func (h264dp *h264Depacketizer) depacketizeStapa(basePts int64, packet *Packet) 
 	return
 }
 
-func (h264dp *h264Depacketizer) depacketizeFuA(basePts int64, packet *Packet) (err error) {
+func (h264dp *h264Depacketizer) depacketizeFuA(packet *Packet) (err error) {
 	payload := packet.Payload()
 	header := payload[0]
 
@@ -182,13 +177,13 @@ func (h264dp *h264Depacketizer) depacketizeFuA(basePts int64, packet *Packet) (e
 		// 清空分片缓存
 		h264dp.fragments = h264dp.fragments[:0]
 
-		err = h264dp.writeFrame(basePts, packet.Timestamp, frame)
+		err = h264dp.writeFrame(packet.Timestamp, frame)
 	}
 
 	return
 }
 
-func (h264dp *h264Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, frame *codec.Frame) error {
+func (h264dp *h264Depacketizer) writeFrame(rtpTimestamp uint32, frame *codec.Frame) error {
 	nalType := frame.Payload[0] & 0x1f
 	switch nalType {
 	case h264.NalSps:
@@ -209,18 +204,16 @@ func (h264dp *h264Depacketizer) writeFrame(basePts int64, rtpTimestamp uint32, f
 		}
 		if h264dp.meta.FixedFrameRate {
 			h264dp.dtsStep = float64(time.Second) / h264dp.meta.FrameRate
-		} else {
-			h264dp.startOn = time.Now()
 		}
 		h264dp.metaReady = true
 	}
 
-	frame.Pts = h264dp.rtp2ntp(rtpTimestamp) - basePts + ptsDelay
+	frame.Pts = h264dp.rtp2ntp(rtpTimestamp) + ptsDelay
 	if h264dp.dtsStep > 0 {
 		frame.Dts = int64(h264dp.nextDts)
 		h264dp.nextDts += h264dp.dtsStep
 	} else {
-		frame.Dts = int64(time.Now().Sub(h264dp.startOn))
+		frame.Dts = h264dp.syncClock.RelativeNtpNow()
 	}
 	return h264dp.w.WriteFrame(frame)
 }

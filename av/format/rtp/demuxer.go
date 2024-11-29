@@ -16,45 +16,35 @@ import (
 
 // 网络播放时 PTS（Presentation Time Stamp）的延时
 const (
-	ptsDelay = int64(time.Second)/2
+	ptsDelay = int64(time.Second) / 2
 )
 
 // Depacketizer 解包器
 type Depacketizer interface {
-	Control(basePts *int64, p *Packet) error
-	Depacketize(basePts int64, p *Packet) error
+	Control(p *Packet) error
+	Depacketize(p *Packet) error
 }
 
 type emptyDepacketizer struct{}
 
-func (emptyDepacketizer) Control(basePts *int64, p *Packet) error     { return nil }
-func (emptyDepacketizer) Depacketize(basePts int64, p *Packet) error  { return nil }
+func (emptyDepacketizer) Control(p *Packet) error     { return nil }
+func (emptyDepacketizer) Depacketize(p *Packet) error { return nil }
 
 type depacketizer struct {
 	syncClock SyncClock
 }
 
-// func (dp *depacketizer) ForcInitSyncClock(basePts *int64, p *Packet) {
-// 	if dp.syncClock.NTPTime == 0 {
-// 		dp.syncClock.RTPTime = p.Timestamp
-// 		dp.syncClock.NTPTime = time.Now().Local().UnixNano()
-// 		if *basePts == 0 {
-// 			*basePts = dp.syncClock.NTPTime
-// 		}
-// 	}
-// }
+func (dp *depacketizer) Control(p *Packet) error {
+	if dp.syncClock.RTPTime == 0 {
+		if ok := dp.syncClock.Decode(p.Data); ok {
 
-func (dp *depacketizer) Control(basePts *int64, p *Packet) error {
-	if ok := dp.syncClock.Decode(p.Data); ok {
-		if *basePts == 0 {
-			*basePts = dp.syncClock.NTPTime
 		}
 	}
 	return nil
 }
 
 func (dp *depacketizer) rtp2ntp(timestamp uint32) int64 {
-	return dp.syncClock.Rtp2Ntp(timestamp)
+	return dp.syncClock.RelativeNtp(timestamp)
 }
 
 // Demuxer 帧转换器
@@ -108,7 +98,6 @@ func (demuxer *Demuxer) process() {
 		demuxer.recvQueue.Reset()
 	}()
 
-	var basePts int64
 	for !demuxer.closed {
 		p := demuxer.recvQueue.Pop()
 		if p == nil {
@@ -122,13 +111,13 @@ func (demuxer *Demuxer) process() {
 		var err error
 		switch packet.Channel {
 		case ChannelVideo:
-			err = demuxer.vdp.Depacketize(basePts, packet)
+			err = demuxer.vdp.Depacketize(packet)
 		case ChannelVideoControl:
-			err = demuxer.vdp.Control(&basePts, packet)
+			err = demuxer.vdp.Control(packet)
 		case ChannelAudio:
-			err = demuxer.adp.Depacketize(basePts, packet)
+			err = demuxer.adp.Depacketize(packet)
 		case ChannelAudioControl:
-			err = demuxer.adp.Control(&basePts, packet)
+			err = demuxer.adp.Control(packet)
 		}
 
 		if err != nil {
