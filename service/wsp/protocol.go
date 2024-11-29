@@ -27,6 +27,7 @@ const (
 	CmdJoin    = "JOIN"     // 数据通道使用
 	CmdWrap    = "WRAP"     // 包装其他协议的命令
 	CmdGetInfo = "GET_INFO" // 获取客户及license信息
+	CmdSwitch  = "SWITCH"   // 当视频为H265时，会发送该命令
 )
 
 // WSP 协议字段
@@ -65,6 +66,7 @@ var (
 		CmdInit:    true,
 		CmdJoin:    true,
 		CmdWrap:    true,
+		CmdSwitch:  true,
 	}
 
 	bspool = &sync.Pool{

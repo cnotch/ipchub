@@ -4288,6 +4288,7 @@
                 .addTransition(RTSPClientSM.STATE_DESCRIBE, RTSPClientSM.STATE_SWITCH)
                 .addTransition(RTSPClientSM.STATE_SWITCH, RTSPClientSM.STATE_SETUP)
                 .addTransition(RTSPClientSM.STATE_DESCRIBE, RTSPClientSM.STATE_UDP)
+                .addTransition(RTSPClientSM.STATE_SWITCH, RTSPClientSM.STATE_UDP)
                 .addTransition(RTSPClientSM.STATE_UDP, RTSPClientSM.STATE_SETUP)
                 .addTransition(RTSPClientSM.STATE_SETUP, RTSPClientSM.STATE_STREAMS)
                 .addTransition(RTSPClientSM.STATE_TEARDOWN, RTSPClientSM.STATE_INITIAL)
@@ -4706,7 +4707,7 @@
                 if (reason == 461) {
                     this.transitionTo(RTSPClientSM.STATE_UDP);
                 } else {
-                    console.error(e);
+                    console.error(reason);
                     this.stop();
                     this.reset();
                 }
@@ -9179,9 +9180,11 @@
 
         // custom close codes
         static get WCC_INVALID_DOMAIN() {return 4000;}
+        static get WCC_DEMO_LIMIT_REACHED() {return 4002;}
 
         constructor(ver){
             this.ver = ver;
+            WSPProtocol.seq = 0;
         }
 
         build(cmd, data, payload=''){
@@ -9221,7 +9224,6 @@
             return null;
         }
     }
-    WSPProtocol.seq = 0;
 
     class WebSocketProxy {
         static get CHN_CONTROL() {return 'control';}
@@ -9288,6 +9290,9 @@
                 let err = new SMediaError(SMediaError.MEDIA_ERR_TRANSPORT);
                 err.message = "Invalid Domain (credentials)";
                 Log$a.error("Invalid domain (credentials)");
+                this.error(err);
+            } else if(error.code === WSPProtocol.WCC_DEMO_LIMIT_REACHED){
+                let err = new SMediaError(error.code);
                 this.error(err);
             }
         }
@@ -9394,7 +9399,8 @@
                         Object.assign(headers, {
                             host:  this.endpoint.host,
                             port:  this.endpoint.port,
-                            client: this.endpoint.client
+                            client: this.endpoint.client,
+                            restreamer: md5(this.endpoint.full),
                         });
                     }
                      let msgLicense = this.builder.build(WSPProtocol.CMD_GET_INFO, headers);
@@ -9606,6 +9612,7 @@
     class H265Decoder {
         constructor(canvas) {
             this.canvas = canvas;
+            this.canvasHandler = new CanvasHandler(this.canvas);
             this.remuxer;
             this.decoder;
         }
@@ -9673,32 +9680,93 @@
         }
 
         displayImage(image) {    
-            var w = image.get_width();
-            var h = image.get_height();
-            if (w != this.canvas.width || h != this.canvas.height || !this.image_data) {
-                this.canvas.width = w;
-                this.canvas.height = h;
+            if (!this.image_data) {
+                let w = image.get_width();
+                let h = image.get_height();
                 this.image_data = this.ctx.createImageData(w, h);
-                var image_data = this.image_data.data;
-                for (var i=0; i<w*h; i++) {
+                let image_data = this.image_data.data;
+                for (let i=0; i<w*h; i++) {
                     image_data[i*4+3] = 255;
                 }
             }
         
-            var that = this;
+            let that = this;
             image.display(this.image_data, function(display_image_data) {
                 if (window.requestAnimationFrame) {
                     that.pending_image_data = display_image_data;
                     window.requestAnimationFrame(function() {
                         if (that.pending_image_data) {
-                            that.ctx.putImageData(that.pending_image_data, 0, 0);
+                            that.canvasHandler.draw(that.pending_image_data);
                             that.pending_image_data = null;
                         }
                     });
                 } else {
-                    that.ctx.putImageData(display_image_data, 0, 0);
+                    that.canvasHandler.draw(display_image_data);
                 }
             });
+        }
+    }
+
+    class CanvasHandler {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.ctx = this.canvas.getContext("2d");
+            this.auxiliary_canvas = document.createElement("canvas");
+            this.auxiliary_ctx = this.auxiliary_canvas.getContext("2d");
+            this.eventSource = new EventEmitter();
+        }
+
+        draw(imageData) {
+            let shouldCanvasResize = this.canvas.getAttribute("resize") === "true";
+
+            this.trueSizeCheck(imageData);
+
+            if (shouldCanvasResize) {
+                this.drawByImageSize(imageData);
+            } else {
+                this.drawByCanvasSize(imageData);
+            }
+        }
+
+        drawByCanvasSize(imageData) {
+            this.canvasResize(imageData.width, imageData.height, this.auxiliary_canvas);
+            this.auxiliary_ctx.putImageData(imageData, 0, 0);
+
+            this.restoreCanvasSize(this.canvas);
+
+            this.ctx.drawImage(this.auxiliary_canvas, 0, 0, this.canvas.width, this.canvas.height);
+        }
+
+        drawByImageSize(imageData) {
+            this.canvasResize(imageData.width, imageData.height, this.canvas);
+            this.ctx.putImageData(imageData, 0, 0);
+        }
+
+        canvasResize(width, height, canvas) {
+            if (width != canvas.width || height != canvas.height) {
+                canvas.setAttribute("width", width);
+                canvas.setAttribute("height", height);
+            }
+        }
+
+        restoreCanvasSize(canvas) {
+            let resolution = canvas.getAttribute("resolution");
+
+            if (resolution) {
+                let size = resolution.split('x');
+                this.canvasResize(size[0], size[1], canvas);
+            }
+        }
+
+        trueSizeCheck(imageData) {
+            if (this.trueSize === undefined) {
+                this.trueSize = {
+                    "width": imageData.width,
+                    "height": imageData.height,
+                };
+
+                this.eventSource.dispatchEvent("trueSize", this.trueSize);
+            }
         }
     }
 
@@ -9772,6 +9840,7 @@
             this.infoHandler = opts.infoHandler || null;
             this.dataHandler = opts.dataHandler || null;
             this.videoFormatHandler = opts.videoFormatHandler || null;
+            this.trueSizeHandler = opts.trueSizeHandler || null;
             this.queryCredentials = opts.queryCredentials || null;
 
             this.bufferDuration_ = opts.bufferDuration || 120;
@@ -9972,6 +10041,9 @@
 
             this.h265Decoder = new H265Decoder(this.canvas);
             this.h265Decoder.attachSource(this.client);
+            this.h265Decoder.canvasHandler.eventSource.addEventListener("trueSize", (event)=>{
+                this.truesizeCallback(event.detail);
+            });
 
             this.continuousRecording.attachSource(this.remuxer);
             this.eventRecording.attachSource(this.remuxer);
@@ -10027,6 +10099,12 @@
                 }
             }
         }    
+
+        truesizeCallback(size) {
+            if (this.trueSizeHandler) {
+                this.trueSizeHandler(size);
+            }
+        }
 
         mediadata(data, prefix){
             if (data !== undefined) {
@@ -10119,6 +10197,11 @@
                 videoFormatHandler(format) {
                     if(opts.videoFormatHandler) {
                         opts.videoFormatHandler(format);
+                    }
+                },
+                trueSizeHandler(size) {
+                    if(opts.trueSizeHandler) {
+                        opts.trueSizeHandler(size);
                     }
                 },
 

@@ -201,27 +201,32 @@ func (s *Session) process() {
 			break
 		}
 
-		if req.Cmd != CmdWrap {
-			s.logger.Error("must is WRAP command request")
-			break
-		}
-
-		// 从包装命令中提取 rtsp 请求
-		var rtspReq *rtsp.Request
-		rtspReq, err = rtsp.ReadRequest(bufio.NewReader(bytes.NewBufferString(req.Body)))
-		if err != nil {
-			break
-		}
-
-		// 处理请求，并获得响应
-		rtspResp := s.onRequest(rtspReq)
-
-		// 发送响应
 		buf := buffers.Get().(*bytes.Buffer)
 		buf.Reset()
 		defer buffers.Put(buf)
 		req.ResponseOK(buf, map[string]string{FieldChannel: s.channelID}, "")
-		rtspResp.Write(buf)
+
+		teardownReq := false //Teardown RTSP Request
+		if req.Cmd == CmdWrap {
+			// 从包装命令中提取 rtsp 请求
+			var rtspReq *rtsp.Request
+			rtspReq, err = rtsp.ReadRequest(bufio.NewReader(bytes.NewBufferString(req.Body)))
+			if err != nil {
+				break
+			}
+			teardownReq = rtspReq.Method == rtsp.MethodTeardown
+
+			// 处理请求，并获得响应
+			rtspResp := s.onRequest(rtspReq)
+			// 响应写入buf
+			rtspResp.Write(buf)
+		} else if req.Cmd == CmdSwitch {
+		} else {
+			s.logger.Error("must is WRAP or SWITCH command request")
+			break
+		}
+
+		// 发送响应
 		_, err = s.conn.Write(buf.Bytes())
 		if err != nil {
 			break
@@ -230,7 +235,7 @@ func (s *Session) process() {
 		s.logger.Debugf("wsp ===>>>\r\n%s", buf.String())
 
 		// 关闭通道
-		if rtspReq.Method == rtsp.MethodTeardown {
+		if teardownReq {
 			break
 		}
 	}
